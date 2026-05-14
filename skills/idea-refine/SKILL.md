@@ -1,178 +1,150 @@
 ---
 name: idea-refine
-description: Refines raw ideas into sharp, actionable concepts through structured divergent and convergent thinking. Use when an idea is still vague, when you need to stress-test assumptions before committing to a plan, or when you want to expand options before converging on one. Triggers on "ideate", "refine this idea", or "stress-test my plan".
+description: 通过结构化的发散/收敛思维，将模糊的想法转化为具体的提案。当用户有大致概念需要探索、有多个不确定的选项、或用户要求"让我们头脑风暴"时使用。
 ---
 
-# Idea Refine
+# 想法精炼
 
-Refines raw ideas into sharp, actionable concepts worth building through structured divergent and convergent thinking.
+## 概览
 
-## How It Works
+通过结构化的发散/收敛思维过程，将模糊的想法转化为具体的、可执行的提案。不跳跃到第一个解决方案——先探索空间，然后收敛。
 
-1.  **Understand & Expand (Divergent):** Restate the idea, ask sharpening questions, and generate variations.
-2.  **Evaluate & Converge:** Cluster ideas, stress-test them, and surface hidden assumptions.
-3.  **Sharpen & Ship:** Produce a concrete markdown one-pager moving work forward.
+## 何时使用
 
-## Usage
+- 用户有想法但不确定如何实现
+- 有多个可行的方法，需要选择
+- 用户要求"让我们头脑风暴"或"帮我思考这个"
+- 问题没有明显的最佳答案
+- 在编写规格之前，你想探索选项
 
-This skill is primarily an interactive dialogue. Invoke it with an idea, and the agent will guide you through the process.
+## 何时不使用
 
-```bash
-# Optional: Initialize the ideas directory
-bash /mnt/skills/user/idea-refine/scripts/idea-refine.sh
+- 用户有明确的、写好的规格
+- 修复是明确和局部的
+- 用户明确要求快速原型且接受无探索的权衡
+
+## 流程
+
+```
+发散        收敛
+  ↓           ↓
+生成选项   →  评估选项   →  选择最佳   →  精炼提案
+（广泛）      （分析）      （决定）      （具体）
 ```
 
-**Trigger Phrases:**
-- "Help me refine this idea"
-- "Ideate on [concept]"
-- "Stress-test my plan"
+### 第 1 步：发散——生成选项
 
-## Output
+生成多种可能的解决方案。在这个阶段不评判——数量优于质量。
 
-The final output is a markdown one-pager saved to `docs/ideas/[idea-name].md` (after user confirmation), containing:
-- Problem Statement
-- Recommended Direction
-- Key Assumptions
-- MVP Scope
-- Not Doing list
+```
+问题："用户需要离线访问任务"
 
-## Detailed Instructions
-
-You are an ideation partner. Your job is to help refine raw ideas into sharp, actionable concepts worth building.
-
-### Philosophy
-
-- Simplicity is the ultimate sophistication. Push toward the simplest version that still solves the real problem.
-- Start with the user experience, work backwards to technology.
-- Say no to 1,000 things. Focus beats breadth.
-- Challenge every assumption. "How it's usually done" is not a reason.
-- Show people the future — don't just give them better horses.
-- The parts you can't see should be as beautiful as the parts you can.
-
-### Process
-
-When the user invokes this skill with an idea (`$ARGUMENTS`), guide them through three phases. Adapt your approach based on what they say — this is a conversation, not a template.
-
-#### Phase 1: Understand & Expand (Divergent)
-
-**Goal:** Take the raw idea and open it up.
-
-1. **Restate the idea** as a crisp "How Might We" problem statement. This forces clarity on what's actually being solved.
-
-2. **Ask 3-5 sharpening questions** — no more. Focus on:
-   - Who is this for, specifically?
-   - What does success look like?
-   - What are the real constraints (time, tech, resources)?
-   - What's been tried before?
-   - Why now?
-
-   Use the `AskUserQuestion` tool to gather this input. Do NOT proceed until you understand who this is for and what success looks like.
-
-3. **Generate 5-8 idea variations** using these lenses:
-   - **Inversion:** "What if we did the opposite?"
-   - **Constraint removal:** "What if budget/time/tech weren't factors?"
-   - **Audience shift:** "What if this were for [different user]?"
-   - **Combination:** "What if we merged this with [adjacent idea]?"
-   - **Simplification:** "What's the version that's 10x simpler?"
-   - **10x version:** "What would this look like at massive scale?"
-   - **Expert lens:** "What would [domain] experts find obvious that outsiders wouldn't?"
-
-   Push beyond what the user initially asked for. Create products people don't know they need yet.
-
-**If running inside a codebase:** Use `Glob`, `Grep`, and `Read` to scan for relevant context — existing architecture, patterns, constraints, prior art. Ground your variations in what actually exists. Reference specific files and patterns when relevant.
-
-Read `frameworks.md` in this skill directory for additional ideation frameworks you can draw from. Use them selectively — pick the lens that fits the idea, don't run every framework mechanically.
-
-#### Phase 2: Evaluate & Converge
-
-After the user reacts to Phase 1 (indicates which ideas resonate, pushes back, adds context), shift to convergent mode:
-
-1. **Cluster** the ideas that resonated into 2-3 distinct directions. Each direction should feel meaningfully different, not just variations on a theme.
-
-2. **Stress-test** each direction against three criteria:
-   - **User value:** Who benefits and how much? Is this a painkiller or a vitamin?
-   - **Feasibility:** What's the technical and resource cost? What's the hardest part?
-   - **Differentiation:** What makes this genuinely different? Would someone switch from their current solution?
-
-   Read `refinement-criteria.md` in this skill directory for the full evaluation rubric.
-
-3. **Surface hidden assumptions.** For each direction, explicitly name:
-   - What you're betting is true (but haven't validated)
-   - What could kill this idea
-   - What you're choosing to ignore (and why that's okay for now)
-
-   This is where most ideation fails. Don't skip it.
-
-**Be honest, not supportive.** If an idea is weak, say so with kindness. A good ideation partner is not a yes-machine. Push back on complexity, question real value, and point out when the emperor has no clothes.
-
-#### Phase 3: Sharpen & Ship
-
-Produce a concrete artifact — a markdown one-pager that moves work forward:
-
-```markdown
-# [Idea Name]
-
-## Problem Statement
-[One-sentence "How Might We" framing]
-
-## Recommended Direction
-[The chosen direction and why — 2-3 paragraphs max]
-
-## Key Assumptions to Validate
-- [ ] [Assumption 1 — how to test it]
-- [ ] [Assumption 2 — how to test it]
-- [ ] [Assumption 3 — how to test it]
-
-## MVP Scope
-[The minimum version that tests the core assumption. What's in, what's out.]
-
-## Not Doing (and Why)
-- [Thing 1] — [reason]
-- [Thing 2] — [reason]
-- [Thing 3] — [reason]
-
-## Open Questions
-- [Question that needs answering before building]
+选项：
+A) Service Worker + Cache API
+B) IndexedDB 本地存储
+C) 同步的 localStorage（简单但有限）
+D) 电子应用（桌面原生存储）
+E) PWA + 后台同步
+F) 服务器端用户数据缓存
 ```
 
-**The "Not Doing" list is arguably the most valuable part.** Focus is about saying no to good ideas. Make the trade-offs explicit.
+目标：5-10 个不同的方法。如果少于 5 个，继续 brainstorming。
 
-Ask the user if they'd like to save this to `docs/ideas/[idea-name].md` (or a location of their choosing). Only save if they confirm.
+### 第 2 步：收敛——评估选项
 
-### Anti-patterns to Avoid
+对每个选项，评估关键维度：
 
-- **Don't generate 20+ ideas.** Quality over quantity. 5-8 well-considered variations beat 20 shallow ones.
-- **Don't be a yes-machine.** Push back on weak ideas with specificity and kindness.
-- **Don't skip "who is this for."** Every good idea starts with a person and their problem.
-- **Don't produce a plan without surfacing assumptions.** Untested assumptions are the #1 killer of good ideas.
-- **Don't over-engineer the process.** Three phases, each doing one thing well. Resist adding steps.
-- **Don't just list ideas — tell a story.** Each variation should have a reason it exists, not just be a bullet point.
-- **Don't ignore the codebase.** If you're in a project, the existing architecture is a constraint and an opportunity. Use it.
+| 选项 | 复杂度 | 可靠性 | 用户体验 | 维护成本 |
+|------|--------|--------|---------|---------|
+| A) Service Worker | 中 | 高 | 好 | 中 |
+| B) IndexedDB | 中 | 高 | 好 | 中 |
+| C) localStorage | 低 | 中 | 一般 | 低 |
+| D) 电子应用 | 高 | 高 | 好 | 高 |
+| E) PWA + 后台同步 | 中 | 高 | 好 | 中 |
+| F) 服务器缓存 | 低 | 低 | 差 | 低 |
 
-### Tone
+### 第 3 步：选择最佳
 
-Direct, thoughtful, slightly provocative. You're a sharp thinking partner, not a facilitator reading from a script. Channel the energy of "that's interesting, but what if..." -- always pushing one step further without being exhausting.
+基于评估，推荐 2-3 个最佳选项，说明理由。
 
-Read `examples.md` in this skill directory for examples of what great ideation sessions look like.
+```
+推荐：
+1. E) PWA + 后台同步 — 最佳用户体验，可靠的离线支持，
+   与 Web 技术栈兼容
+2. A) Service Worker + Cache API — 与 E 类似，但更手动控制
+3. B) IndexedDB — 如果需要复杂查询，最简单的可靠选项
 
-## Red Flags
+不推荐：
+- C) localStorage — 存储限制（5MB），无事务
+- D) 电子应用 — 过度工程，高维护成本
+- F) 服务器缓存 — 真正的离线访问不可靠
+```
 
-- Generating 20+ shallow variations instead of 5-8 considered ones
-- Skipping the "who is this for" question
-- No assumptions surfaced before committing to a direction
-- Yes-machining weak ideas instead of pushing back with specificity
-- Producing a plan without a "Not Doing" list
-- Ignoring existing codebase constraints when ideating inside a project
-- Jumping straight to Phase 3 output without running Phases 1 and 2
+### 第 4 步：精炼提案
 
-## Verification
+将最佳选项精炼为具体的、可执行的提案。
 
-After completing an ideation session:
+```
+提案：使用 PWA + 后台同步
 
-- [ ] A clear "How Might We" problem statement exists
-- [ ] The target user and success criteria are defined
-- [ ] Multiple directions were explored, not just the first idea
-- [ ] Hidden assumptions are explicitly listed with validation strategies
-- [ ] A "Not Doing" list makes trade-offs explicit
-- [ ] The output is a concrete artifact (markdown one-pager), not just conversation
-- [ ] The user confirmed the final direction before any implementation work
+实现：
+1. 注册 Service Worker，使用 Cache API 缓存 API 响应
+2. 使用 IndexedDB 存储离线任务
+3. 使用 Background Sync API 在网络恢复时同步
+4. 在离线时显示离线指示器
+
+关键决策：
+- 冲突解决：最后写入获胜（简单，对任务可接受）
+- 同步策略：后台同步，带指数退避重试
+- 离线体验：用户可以看到和编辑任务，在后台同步
+
+权衡：
+- 复杂性：中等——Service Worker 和 IndexedDB 都有学习曲线
+- 兼容性：需要 HTTPS，不支持非常旧的浏览器
+- 维护：Service Worker 需要版本管理和清除策略
+```
+
+## 评估维度
+
+根据项目上下文选择相关维度：
+
+| 维度 | 何时相关 |
+|------|---------|
+| 复杂度 | 团队规模小，时间有限 |
+| 可靠性 | 关键任务，故障成本高 |
+| 用户体验 | 面向用户的界面 |
+| 维护成本 | 长期维护的项目 |
+| 性能 | 高流量或资源受限 |
+| 安全性 | 处理敏感数据 |
+| 兼容性 | 需要支持旧浏览器/设备 |
+| 可扩展性 | 预期增长 |
+
+## 常见合理化
+
+| 合理化 | 现实 |
+|---|---|
+| "第一个想法通常是最好的" | 第一个想法通常是默认的，不一定是最好的。探索揭示更好的选项。 |
+| "我们没有时间头脑风暴" | 在不了解选项的情况下选择花费更多——你可能会选择错误的方法并返工。 |
+| "我们可以稍后改变" | 架构决策很难更改。现在就做正确的事情。 |
+| "这个决定很小" | 小的架构决策累积成大的技术债务。认真对待每个决策。 |
+
+## 危险信号
+
+- 不探索选项就跳跃到解决方案
+- 不评估权衡就推荐一个选项
+- 生成少于 3 个选项
+- 评估不使用明确的标准
+- 不解释为什么排除选项
+- 提案不够具体，无法开始实施
+
+## 验证
+
+精炼想法后：
+
+- [ ] 生成了 5-10 个不同的选项
+- [ ] 选项使用明确的标准进行了评估
+- [ ] 推荐了 2-3 个最佳选项，附理由
+- [ ] 排除了选项，附理由
+- [ ] 提案是具体的和可执行的
+- [ ] 权衡已被讨论
+- [ ] 用户确认了提案

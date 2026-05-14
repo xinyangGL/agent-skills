@@ -1,309 +1,251 @@
 ---
 name: shipping-and-launch
-description: Prepares production launches. Use when preparing to deploy to production. Use when you need a pre-launch checklist, when setting up monitoring, when planning a staged rollout, or when you need a rollback strategy.
+description: 准备部署到生产环境。当准备发布功能、部署到生产或进行重大变更时使用。当用户要求"我们准备好发布了吗"、"发布检查"或"部署计划"时使用。
 ---
 
-# Shipping and Launch
+# 发布与上线
 
-## Overview
+## 概览
 
-Ship with confidence. The goal is not just to deploy — it's to deploy safely, with monitoring in place, a rollback plan ready, and a clear understanding of what success looks like. Every launch should be reversible, observable, and incremental.
+准备发布到生产环境——发布前检查、特性标志、分阶段发布、回滚计划和监控。目标是通过准备和纪律使发布可预测和无压力。
 
-## When to Use
+## 何时使用
 
-- Deploying a feature to production for the first time
-- Releasing a significant change to users
-- Migrating data or infrastructure
-- Opening a beta or early access program
-- Any deployment that carries risk (all of them)
+- 准备发布新功能
+- 部署到生产环境
+- 进行重大变更
+- 用户要求"我们准备好发布了吗"
+- 你需要发布计划或检查
 
-## The Pre-Launch Checklist
-
-### Code Quality
-
-- [ ] All tests pass (unit, integration, e2e)
-- [ ] Build succeeds with no warnings
-- [ ] Lint and type checking pass
-- [ ] Code reviewed and approved
-- [ ] No TODO comments that should be resolved before launch
-- [ ] No `console.log` debugging statements in production code
-- [ ] Error handling covers expected failure modes
-
-### Security
-
-- [ ] No secrets in code or version control
-- [ ] `npm audit` shows no critical or high vulnerabilities
-- [ ] Input validation on all user-facing endpoints
-- [ ] Authentication and authorization checks in place
-- [ ] Security headers configured (CSP, HSTS, etc.)
-- [ ] Rate limiting on authentication endpoints
-- [ ] CORS configured to specific origins (not wildcard)
-
-### Performance
-
-- [ ] Core Web Vitals within "Good" thresholds
-- [ ] No N+1 queries in critical paths
-- [ ] Images optimized (compression, responsive sizes, lazy loading)
-- [ ] Bundle size within budget
-- [ ] Database queries have appropriate indexes
-- [ ] Caching configured for static assets and repeated queries
-
-### Accessibility
-
-- [ ] Keyboard navigation works for all interactive elements
-- [ ] Screen reader can convey page content and structure
-- [ ] Color contrast meets WCAG 2.1 AA (4.5:1 for text)
-- [ ] Focus management correct for modals and dynamic content
-- [ ] Error messages are descriptive and associated with form fields
-- [ ] No accessibility warnings in axe-core or Lighthouse
-
-### Infrastructure
-
-- [ ] Environment variables set in production
-- [ ] Database migrations applied (or ready to apply)
-- [ ] DNS and SSL configured
-- [ ] CDN configured for static assets
-- [ ] Logging and error reporting configured
-- [ ] Health check endpoint exists and responds
-
-### Documentation
-
-- [ ] README updated with any new setup requirements
-- [ ] API documentation current
-- [ ] ADRs written for any architectural decisions
-- [ ] Changelog updated
-- [ ] User-facing documentation updated (if applicable)
-
-## Feature Flag Strategy
-
-Ship behind feature flags to decouple deployment from release:
-
-```typescript
-// Feature flag check
-const flags = await getFeatureFlags(userId);
-
-if (flags.taskSharing) {
-  // New feature: task sharing
-  return <TaskSharingPanel task={task} />;
-}
-
-// Default: existing behavior
-return null;
-```
-
-**Feature flag lifecycle:**
-
-```
-1. DEPLOY with flag OFF     → Code is in production but inactive
-2. ENABLE for team/beta     → Internal testing in production environment
-3. GRADUAL ROLLOUT          → 5% → 25% → 50% → 100% of users
-4. MONITOR at each stage    → Watch error rates, performance, user feedback
-5. CLEAN UP                 → Remove flag and dead code path after full rollout
-```
-
-**Rules:**
-- Every feature flag has an owner and an expiration date
-- Clean up flags within 2 weeks of full rollout
-- Don't nest feature flags (creates exponential combinations)
-- Test both flag states (on and off) in CI
-
-## Staged Rollout
-
-### The Rollout Sequence
-
-```
-1. DEPLOY to staging
-   └── Full test suite in staging environment
-   └── Manual smoke test of critical flows
-
-2. DEPLOY to production (feature flag OFF)
-   └── Verify deployment succeeded (health check)
-   └── Check error monitoring (no new errors)
-
-3. ENABLE for team (flag ON for internal users)
-   └── Team uses the feature in production
-   └── 24-hour monitoring window
-
-4. CANARY rollout (flag ON for 5% of users)
-   └── Monitor error rates, latency, user behavior
-   └── Compare metrics: canary vs. baseline
-   └── 24-48 hour monitoring window
-   └── Advance only if all thresholds pass (see table below)
-
-5. GRADUAL increase (25% -> 50% -> 100%)
-   └── Same monitoring at each step
-   └── Ability to roll back to previous percentage at any point
-
-6. FULL rollout (flag ON for all users)
-   └── Monitor for 1 week
-   └── Clean up feature flag
-```
-
-### Rollout Decision Thresholds
-
-Use these thresholds to decide whether to advance, hold, or roll back at each stage:
-
-| Metric | Advance (green) | Hold and investigate (yellow) | Roll back (red) |
-|--------|-----------------|-------------------------------|-----------------|
-| Error rate | Within 10% of baseline | 10-100% above baseline | >2x baseline |
-| P95 latency | Within 20% of baseline | 20-50% above baseline | >50% above baseline |
-| Client JS errors | No new error types | New errors at <0.1% of sessions | New errors at >0.1% of sessions |
-| Business metrics | Neutral or positive | Decline <5% (may be noise) | Decline >5% |
-
-### When to Roll Back
-
-Roll back immediately if:
-- Error rate increases by more than 2x baseline
-- P95 latency increases by more than 50%
-- User-reported issues spike
-- Data integrity issues detected
-- Security vulnerability discovered
-
-## Monitoring and Observability
-
-### What to Monitor
-
-```
-Application metrics:
-├── Error rate (total and by endpoint)
-├── Response time (p50, p95, p99)
-├── Request volume
-├── Active users
-└── Key business metrics (conversion, engagement)
-
-Infrastructure metrics:
-├── CPU and memory utilization
-├── Database connection pool usage
-├── Disk space
-├── Network latency
-└── Queue depth (if applicable)
-
-Client metrics:
-├── Core Web Vitals (LCP, INP, CLS)
-├── JavaScript errors
-├── API error rates from client perspective
-└── Page load time
-```
-
-### Error Reporting
-
-```typescript
-// Set up error boundary with reporting
-class ErrorBoundary extends React.Component {
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Report to error tracking service
-    reportError(error, {
-      componentStack: info.componentStack,
-      userId: getCurrentUser()?.id,
-      page: window.location.pathname,
-    });
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <ErrorFallback onRetry={() => this.setState({ hasError: false })} />;
-    }
-    return this.props.children;
-  }
-}
-
-// Server-side error reporting
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  reportError(err, {
-    method: req.method,
-    url: req.url,
-    userId: req.user?.id,
-  });
-
-  // Don't expose internals to users
-  res.status(500).json({
-    error: { code: 'INTERNAL_ERROR', message: 'Something went wrong' },
-  });
-});
-```
-
-### Post-Launch Verification
-
-In the first hour after launch:
-
-```
-1. Check health endpoint returns 200
-2. Check error monitoring dashboard (no new error types)
-3. Check latency dashboard (no regression)
-4. Test the critical user flow manually
-5. Verify logs are flowing and readable
-6. Confirm rollback mechanism works (dry run if possible)
-```
-
-## Rollback Strategy
-
-Every deployment needs a rollback plan before it happens:
+## 发布前检查清单
 
 ```markdown
-## Rollback Plan for [Feature/Release]
+# 发布检查清单 - v1.2.0
 
-### Trigger Conditions
-- Error rate > 2x baseline
-- P95 latency > [X]ms
-- User reports of [specific issue]
+## 功能
+- [ ] 所有计划功能已完成并通过测试
+- [ ] 特性标志已配置（默认关闭，除非已验证）
+- [ ] 功能演示已通过利益相关者审查
 
-### Rollback Steps
-1. Disable feature flag (if applicable)
-   OR
-1. Deploy previous version: `git revert <commit> && git push`
-2. Verify rollback: health check, error monitoring
-3. Communicate: notify team of rollback
+## 质量
+- [ ] 所有测试通过（单元、集成、E2E）
+- [ ] 代码审查完成（无严重问题）
+- [ ] 安全审查完成（无严重或高危漏洞）
+- [ ] 性能预算通过（Lighthouse ≥ 90）
+- [ ] Bundle 大小没有显著增加
 
-### Database Considerations
-- Migration [X] has a rollback: `npx prisma migrate rollback`
-- Data inserted by new feature: [preserved / cleaned up]
+## 文档
+- [ ] API 文档已更新
+- [ ] 用户文档已更新
+- [ ] 变更日志已更新
+- [ ] ADRs 已记录（如适用）
 
-### Time to Rollback
-- Feature flag: < 1 minute
-- Redeploy previous version: < 5 minutes
-- Database rollback: < 15 minutes
+## 基础设施
+- [ ] 数据库迁移已测试
+- [ ] 环境变量已配置
+- [ ] 监控和警报已设置
+- [ ] 日志配置已更新
+
+## 回滚
+- [ ] 回滚计划已文档化
+- [ ] 回滚步骤已测试
+- [ ] 特性标志可以关闭以禁用功能
+- [ ] 数据库回滚脚本已准备
+
+## 沟通
+- [ ] 发布通知已发送给团队
+- [ ] 用户通知已准备（如适用）
+- [ ] 支持团队已了解新功能
+- [ ] 发布经理已确认
 ```
-## See Also
 
-- For security pre-launch checks, see `references/security-checklist.md`
-- For performance pre-launch checklist, see `references/performance-checklist.md`
-- For accessibility verification before launch, see `references/accessibility-checklist.md`
+## 特性标志生命周期
 
-## Common Rationalizations
+```
+创建 → 测试 → 内部发布 → 分阶段发布 → 全面发布 → 清理
+  ↓       ↓        ↓           ↓           ↓         ↓
+ 添加    CI测试   10%用户     50%用户    100%用户  移除标志
+ 标志               监控               监控       和代码
+```
 
-| Rationalization | Reality |
+**规则：**
+- 特性标志默认关闭，直到 CI 测试通过
+- 在全面发布后 2 周内清理标志
+- 在 CI 中测试两种状态（开启和关闭）
+- 跟踪所有活动特性标志（防止标志债务）
+
+## 分阶段发布
+
+```
+阶段 1：内部用户（团队）
+          ↓ 验证功能、监控错误
+阶段 2：10% 用户（早期采用者）
+          ↓ 监控指标、收集反馈
+阶段 3：50% 用户（广泛测试）
+          ↓ 验证性能、检查兼容
+阶段 4：100% 用户（全面发布）
+          ↓ 持续监控、准备回滚
+```
+
+**每个阶段的标准：**
+- 错误率 < 0.1%
+- 响应时间 p95 < 200ms
+- 没有严重用户报告的问题
+- 团队确认继续
+
+## 回滚流程
+
+```
+检测到问题
+    ↓
+评估严重性
+    ↓
+严重？ → 立即回滚
+    ↓ 否
+可以热修复？ → 部署热修复
+    ↓ 否
+计划回滚
+    ↓
+执行回滚
+    ↓
+验证回滚
+    ↓
+调查问题
+```
+
+**回滚决策矩阵：**
+
+| 问题严重性 | 用户影响 | 行动 |
+|-----------|---------|------|
+| 严重 | > 10% 用户 | 立即回滚 |
+| 高 | 1-10% 用户 | 在 1 小时内回滚或热修复 |
+| 中 | < 1% 用户 | 在下一个 sprint 中修复 |
+| 低 | 少数用户 | 排入 backlog |
+
+## 监控设置
+
+发布后监控关键指标：
+
+```yaml
+# 发布后监控仪表板
+metrics:
+  - 错误率（目标：< 0.1%）
+  - 响应时间 p95（目标：< 200ms）
+  - 用户会话成功率（目标：> 99%）
+  - 功能使用率（新特性 adoption）
+  - 资源使用率（CPU、内存、磁盘）
+
+alerts:
+  - 错误率 > 0.5% → 立即通知
+  - 响应时间 p95 > 500ms → 15 分钟内通知
+  - 用户会话成功率 < 95% → 立即通知
+```
+
+## 发布沟通
+
+### 内部通知
+
+```markdown
+# 发布通知 - v1.2.0
+
+## 概述
+在 [日期] 发布任务管理增强功能。
+
+## 变更
+- 新任务创建流程（特性标志：`new-task-flow`）
+- 改进的任务过滤
+- 性能优化（API 响应时间减少 30%）
+
+## 风险
+- 新任务创建流程可能影响旧浏览器
+- 缓解：特性标志默认关闭，可以在 [链接] 中控制
+
+## 回滚
+- 关闭 `new-task-flow` 特性标志以禁用新流程
+- 回滚步骤：[链接到回滚计划]
+
+## 监控
+- 发布仪表板：[链接]
+- 错误跟踪：[链接]
+
+## 联系人
+- 发布经理：[姓名]
+- 技术支持：[姓名]
+```
+
+### 用户通知（如适用）
+
+```markdown
+# 新功能：改进的任务创建
+
+我们改进了任务创建流程，使其更快速和直观。
+
+## 新特性
+- 更快的表单验证
+- 更清晰的任务优先级选择
+- 更好的错误消息
+
+## 需要做什么
+无——新功能自动可用。如果您有任何问题，请 [联系支持]。
+
+## 反馈
+我们想听听您的意见。如果您有任何反馈，请 [提交反馈]。
+```
+
+## 发布后回顾
+
+发布后 1 周，进行回顾：
+
+```markdown
+# 发布回顾 - v1.2.0
+
+## 指标
+- 错误率：[实际值] vs [目标]
+- 响应时间：[实际值] vs [目标]
+- 用户 adoption：[实际值] vs [目标]
+- 用户报告的问题：[数量]
+
+## 做得好的
+- [正面观察 1]
+- [正面观察 2]
+
+## 可以改进的
+- [改进点 1]
+- [改进点 2]
+
+## 行动项
+- [ ] [行动 1] - [负责人] - [截止日期]
+- [ ] [行动 2] - [负责人] - [截止日期]
+```
+
+## 常见合理化
+
+| 合理化 | 现实 |
 |---|---|
-| "It works in staging, it'll work in production" | Production has different data, traffic patterns, and edge cases. Monitor after deploy. |
-| "We don't need feature flags for this" | Every feature benefits from a kill switch. Even "simple" changes can break things. |
-| "Monitoring is overhead" | Not having monitoring means you discover problems from user complaints instead of dashboards. |
-| "We'll add monitoring later" | Add it before launch. You can't debug what you can't see. |
-| "Rolling back is admitting failure" | Rolling back is responsible engineering. Shipping a broken feature is the failure. |
+| "我们可以直接发布" | 没有计划的发布是赌博。检查清单防止遗漏。 |
+| "监控可以稍后添加" | 没有监控的发布是盲目的。从第一天就开始监控。 |
+| "回滚计划是浪费时间" | 直到你需要回滚且没有计划。准备节省时间。 |
+| "这个变更很小，不需要检查" | 小的变更也会引入问题。一致的流程防止遗漏。 |
 
-## Red Flags
+## 危险信号
 
-- Deploying without a rollback plan
-- No monitoring or error reporting in production
-- Big-bang releases (everything at once, no staging)
-- Feature flags with no expiration or owner
-- No one monitoring the deploy for the first hour
-- Production environment configuration done by memory, not code
-- "It's Friday afternoon, let's ship it"
+- 没有检查清单的发布
+- 没有监控的部署
+- 没有回滚计划的发布
+- 特性标志默认开启
+- 没有通知团队的发布
+- 没有用户通知的重大变更
+- 不跟踪特性标志（标志债务）
 
-## Verification
+## 验证
 
-Before deploying:
+发布后：
 
-- [ ] Pre-launch checklist completed (all sections green)
-- [ ] Feature flag configured (if applicable)
-- [ ] Rollback plan documented
-- [ ] Monitoring dashboards set up
-- [ ] Team notified of deployment
-
-After deploying:
-
-- [ ] Health check returns 200
-- [ ] Error rate is normal
-- [ ] Latency is normal
-- [ ] Critical user flow works
-- [ ] Logs are flowing
-- [ ] Rollback tested or verified ready
+- [ ] 发布前检查清单已完成
+- [ ] 特性标志已配置和测试
+- [ ] 分阶段发布计划已执行
+- [ ] 回滚计划已文档化和测试
+- [ ] 监控和警报已设置
+- [ ] 团队已通知
+- [ ] 用户已通知（如适用）
+- [ ] 发布后回顾已计划

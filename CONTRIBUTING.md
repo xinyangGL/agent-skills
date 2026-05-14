@@ -1,73 +1,73 @@
-# Contributing to Agent Skills
+# 为 Agent Skills 贡献
 
-Thanks for your interest in contributing! This project is a collection of production-grade engineering skills for AI coding agents.
+感谢你的贡献兴趣！本项目是面向 AI 编程助手的生产级工程技能集合。
 
-## Adding a New Skill
+## 添加新技能
 
-1. Create a directory under `skills/` with a kebab-case name
-2. Add a `SKILL.md` following the format in [docs/skill-anatomy.md](docs/skill-anatomy.md)
-3. Include YAML frontmatter with `name` and `description` fields
-4. Ensure the `description` starts with what the skill does (third person), then includes one or more `Use when` trigger conditions
+1. 在 `skills/` 下创建 kebab-case 命名的目录
+2. 按照 [docs/skill-anatomy.md](docs/skill-anatomy.md) 中的格式添加 `SKILL.md`
+3. 包含带有 `name` 和 `description` 字段的 YAML frontmatter
+4. 确保 `description` 以技能的用途开头（第三人称），然后包含一个或多个 `Use when` 触发条件
 
-### Skill Quality Bar
+### 技能质量标准
 
-Skills should be:
+技能应该：
 
-- **Specific** — Actionable steps, not vague advice
-- **Verifiable** — Clear exit criteria with evidence requirements
-- **Battle-tested** — Based on real engineering workflows, not theoretical ideals
-- **Minimal** — Only the content needed to guide the agent correctly
+- **具体** — 可操作的步骤，不是模糊的建议
+- **可验证** — 清晰的退出标准和证据要求
+- **经过实战检验** — 基于真实的工程工作流，不是理论理想
+- **精简** — 仅引导代理所需的内容
 
-### Structure
+### 结构
 
-Every new skill must have:
+每个新技能必须包含：
 
-- `SKILL.md` in the skill directory
-- YAML frontmatter with valid `name` and `description`
+- 技能目录中的 `SKILL.md`
+- 带有有效 `name` 和 `description` 的 YAML frontmatter
 
-New skills should generally follow the standard anatomy:
+新技能通常应遵循标准结构：
 
-- **Overview** — What this skill does and why it matters
-- **When to Use** — Triggering conditions
-- **Process** — Step-by-step workflow
-- **Common Rationalizations** — Excuses agents use to skip steps, with rebuttals
-- **Red Flags** — Warning signs that the skill is being applied incorrectly
-- **Verification** — How to confirm the skill was applied correctly
+- **Overview** — 此技能的作用及其重要性
+- **When to Use** — 触发条件
+- **Process** — 逐步工作流
+- **Common Rationalizations** — 代理用来跳过步骤的借口及反驳
+- **Red Flags** — 技能被错误应用的警告信号
+- **Verification** — 如何确认技能被正确应用
 
-The frontmatter fields above are required. The section anatomy is a recommended pattern: equivalent headings such as `How It Works`, `Workflow`, or `Core Process` are fine when they preserve the same intent and keep the skill easy to follow.
+上述 frontmatter 字段是必需的。节的结构是推荐模式：如 `How It Works`、`Workflow` 或 `Core Process` 等等效标题在保持相同意图且使技能易于遵循是可以接受的。
 
-### What Not to Do
+### 不应该做的事
 
-- Don't duplicate content between skills — reference other skills instead
-- Don't add skills that are vague advice instead of actionable processes
-- Don't create supporting files unless content exceeds 100 lines
-- Don't create an empty `scripts/` directory just to match another skill — add `scripts/` only when the skill includes runnable helpers
-- Don't put reference material inside skill directories — use `references/` instead
+- 不要在技能之间重复内容——改为引用其他技能
+- 不要添加模糊建议而非可执行流程的技能
+- 不要创建辅助文件除非内容超过 100 行
+- 不要为了匹配其他技能而创建空的 `scripts/` 目录——仅当技能包含可运行辅助工具时才添加 `scripts/`
+- 不要将参考资料放在技能目录内——使用 `references/`
 
-## Modifying Existing Skills
+## 修改现有技能
 
-- Keep changes focused and minimal
-- Preserve the existing structure and tone
-- Test that YAML frontmatter remains valid after edits
+- 保持变更聚焦和最小化
+- 保留现有结构和语气
+- 测试编辑后 YAML frontmatter 仍然有效
 
-## Testing Hooks
+## 测试钩子
 
-The session-start hook (`hooks/session-start.sh`) injects the `using-agent-skills` meta-skill into every new Claude Code session. A regression test at `hooks/session-start-test.sh` validates the hook's JSON payload — both when `jq` is available and when it isn't.
+session-start 钩子（`hooks/session-start.sh`）将 `using-agent-skills` 元技能注入每个新的 Claude Code 会话。`hooks/session-start-test.sh` 处的回归测试验证钩子的 JSON 有效负载——无论 `jq` 是否可用。
 
-Run it before opening any PR that touches:
+在提交任何触及以下内容的 PR 之前运行它：
 
 - `hooks/session-start.sh`
-- `skills/using-agent-skills/SKILL.md` (the meta-skill content embedded by the hook)
+- `skills/using-agent-skills/SKILL.md`（钩子嵌入的元技能内容）
 
 ```bash
 bash hooks/session-start-test.sh
 ```
 
-Expected output: `session-start JSON payload OK`. The script exits non-zero on any assertion failure.
+预期输出：`session-start JSON payload OK`。脚本在任何断言失败时以非零退出。
 
-### Reproducing the no-jq fallback
+### 复现 no-jq 回退
 
-The hook gracefully degrades to an `INFO`-priority payload when `jq` isn't on `PATH`. To exercise that branch locally, strip `jq`'s directory from `PATH` for the test invocation:
+当 `jq` 不在 `PATH` 上时，钩子优雅降级为 `INFO` 优先级的有效负载。要在本地练习该分支，从测试调用的 `PATH` 中剥离 `jq` 的目录：
 
 ```bash
 JQ_DIR=$(dirname "$(command -v jq)")
@@ -75,18 +75,18 @@ PATH=$(echo "$PATH" | tr ':' '\n' | grep -v "^${JQ_DIR}$" | tr '\n' ':' | sed 's
   bash hooks/session-start-test.sh
 ```
 
-This works cleanly when `jq` lives in its own directory (e.g. `/opt/homebrew/bin` from Homebrew, `/usr/local/bin` from a manual install). If your `jq` shares a system bin with other tools the test depends on (such as `mktemp` in `/usr/bin`), the simpler approach is to install `jq` via a separate package manager so it has its own bin directory, then re-run.
+当 `jq` 位于其自己的目录中时（例如 Homebrew 的 `/opt/homebrew/bin`、手动安装的 `/usr/local/bin`），此方法工作良好。如果你的 `jq` 与测试依赖的其他工具共享系统 bin（如 `/usr/bin` 中的 `mktemp`），更简单的方法是通过单独的包管理器安装 `jq`，使其拥有自己的 bin 目录，然后重新运行。
 
-The hook's `command -v jq` check fails under the stripped `PATH`, the `INFO`-priority fallback runs, and the test asserts the `jq is required` guidance message instead of the normal payload.
+钩子的 `command -v jq` 检查在剥离的 `PATH` 下失败，`INFO` 优先级回退运行，测试断言 `jq is required` 指导消息而不是正常有效负载。
 
-## Reporting Issues
+## 报告问题
 
-Open an issue if you find:
+如果你发现以下问题，请打开 issue：
 
-- A skill that gives incorrect or outdated guidance
-- Missing coverage for a common engineering workflow
-- Inconsistencies between skills
+- 技能给出错误或过时的指导
+- 缺少常见工程工作流的覆盖
+- 技能之间不一致
 
-## License
+## 许可证
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+通过贡献，你同意你的贡献将按 MIT 许可证授权。

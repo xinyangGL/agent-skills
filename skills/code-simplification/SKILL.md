@@ -1,331 +1,209 @@
 ---
 name: code-simplification
-description: Simplifies code for clarity. Use when refactoring code for clarity without changing behavior. Use when code works but is harder to read, maintain, or extend than it should be. Use when reviewing code that has accumulated unnecessary complexity.
+description: 在不改变行为的情况下简化和澄清代码。当代码能运行但比应有的更难阅读或维护时使用。当重构遗留代码、清理技术债务或改进可读性时使用。当用户要求"简化这个"或"清理这个代码"时使用。
 ---
 
-# Code Simplification
+# 代码简化
 
-> Inspired by the [Claude Code Simplifier plugin](https://github.com/anthropics/claude-plugins-official/blob/main/plugins/code-simplifier/agents/code-simplifier.md). Adapted here as a model-agnostic, process-driven skill for any AI coding agent.
+## 概览
 
-## Overview
+在不改变行为的情况下简化代码。目标是通过降低复杂度和提高清晰度来使代码更易于理解、维护和修改。好的简化保留精确行为，同时使意图显而易见的。
 
-Simplify code by reducing complexity while preserving exact behavior. The goal is not fewer lines — it's code that is easier to read, understand, modify, and debug. Every simplification must pass a simple test: "Would a new team member understand this faster than the original?"
+## 何时使用
 
-## When to Use
+- 代码能运行但比应有的更难阅读时
+- 重构遗留代码时
+- 清理技术债务时
+- 用户要求简化或清理代码时
+- 代码有深层嵌套、长函数或重复模式时
 
-- After a feature is working and tests pass, but the implementation feels heavier than it needs to be
-- During code review when readability or complexity issues are flagged
-- When you encounter deeply nested logic, long functions, or unclear names
-- When refactoring code written under time pressure
-- When consolidating related logic scattered across files
-- After merging changes that introduced duplication or inconsistency
+## 何时不使用
 
-**When NOT to use:**
+- 代码已经清晰且简洁时
+- 用户明确要求快速修复且接受不简化的权衡时
+- 在不稳定或正在积极开发的代码上（先稳定它）
 
-- Code is already clean and readable — don't simplify for the sake of it
-- You don't understand what the code does yet — comprehend before you simplify
-- The code is performance-critical and the "simpler" version would be measurably slower
-- You're about to rewrite the module entirely — simplifying throwaway code wastes effort
+## Chesterton 栅栏
 
-## The Five Principles
-
-### 1. Preserve Behavior Exactly
-
-Don't change what the code does — only how it expresses it. All inputs, outputs, side effects, error behavior, and edge cases must remain identical. If you're not sure a simplification preserves behavior, don't make it.
+在移除任何东西之前，了解它为什么存在。
 
 ```
-ASK BEFORE EVERY CHANGE:
-→ Does this produce the same output for every input?
-→ Does this maintain the same error behavior?
-→ Does this preserve the same side effects and ordering?
-→ Do all existing tests still pass without modification?
+看到看似不必要的代码？
+1. 尝试理解它为什么在这里
+2. 查找处理边缘情况的证据
+3. 检查相关问题和提交历史
+4. 只有在你理解它为什么存在后才能移除它
 ```
 
-### 2. Follow Project Conventions
+**规则：** 不要移除你不理解为什么存在的东西。
 
-Simplification means making code more consistent with the codebase, not imposing external preferences. Before simplifying:
+## 500 规则
 
-```
-1. Read CLAUDE.md / project conventions
-2. Study how neighboring code handles similar patterns
-3. Match the project's style for:
-   - Import ordering and module system
-   - Function declaration style
-   - Naming conventions
-   - Error handling patterns
-   - Type annotation depth
-```
-
-Simplification that breaks project consistency is not simplification — it's churn.
-
-### 3. Prefer Clarity Over Cleverness
-
-Explicit code is better than compact code when the compact version requires a mental pause to parse.
+如果解释代码如何工作的注释超过 500 个字，代码可能需要简化。
 
 ```typescript
-// UNCLEAR: Dense ternary chain
-const label = isNew ? 'New' : isUpdated ? 'Updated' : isArchived ? 'Archived' : 'Active';
+// 如果你需要这样的注释来解释代码：
+/*
+ * 这个函数处理用户认证，但只有在用户不是管理员且
+ * 会话没有过期且请求来自受信任的域且...
+ */
+function authenticateUser(user, session, request) {
+  // 50 行复杂的逻辑
+}
 
-// CLEAR: Readable mapping
-function getStatusLabel(item: Item): string {
-  if (item.isNew) return 'New';
-  if (item.isUpdated) return 'Updated';
-  if (item.isArchived) return 'Archived';
-  return 'Active';
+// 考虑将其拆分为更清晰的函数：
+function isAuthenticationRequired(user, request) { ... }
+function isValidSession(session) { ... }
+function isTrustedDomain(request) { ... }
+function authenticateUser(user, session, request) {
+  if (!isAuthenticationRequired(user, request)) return;
+  if (!isValidSession(session)) throw new SessionExpiredError();
+  if (!isTrustedDomain(request)) throw new UnauthorizedError();
+  // 认证逻辑
 }
 ```
 
+## 简化过程
+
+### 第 1 步：理解当前行为
+
+在更改任何内容之前，彻底理解代码做什么。
+
+```markdown
+1. 阅读代码和相关测试
+2. 运行测试以确认它们通过
+3. 写下你对代码行为的理解
+4. 识别输入、输出和副作用
+```
+
+### 第 2 步：识别问题
+
+找到使代码难以阅读或维护的模式。
+
+```markdown
+常见反模式：
+- 深层嵌套（> 3 层）
+- 长函数（> 50 行）
+- 重复代码（DRY 违反）
+- 魔法数字和字符串
+- 不清晰的命名
+- 过多的职责
+```
+
+### 第 3 步：应用简化技术
+
+按优先级应用简化：
+
+**1. 提取函数**
 ```typescript
-// UNCLEAR: Chained reduces with inline logic
-const result = items.reduce((acc, item) => ({
-  ...acc,
-  [item.id]: { ...acc[item.id], count: (acc[item.id]?.count ?? 0) + 1 }
-}), {});
+// 之前：一个长函数
+function processOrder(order) {
+  // 验证
+  if (!order.items) throw new Error('...');
+  if (order.items.length === 0) throw new Error('...');
+  // 计算
+  let total = 0;
+  for (const item of order.items) {
+    total += item.price * item.quantity;
+  }
+  // 应用折扣
+  if (order.discount) total *= (1 - order.discount);
+  // 保存
+  db.orders.save({ ...order, total });
+}
 
-// CLEAR: Named intermediate step
-const countById = new Map<string, number>();
-for (const item of items) {
-  countById.set(item.id, (countById.get(item.id) ?? 0) + 1);
+// 之后：提取的函数
+function validateOrder(order) { ... }
+function calculateTotal(order) { ... }
+function applyDiscount(total, discount) { ... }
+function processOrder(order) {
+  validateOrder(order);
+  const total = applyDiscount(calculateTotal(order), order.discount);
+  db.orders.save({ ...order, total });
 }
 ```
 
-### 4. Maintain Balance
-
-Simplification has a failure mode: over-simplification. Watch for these traps:
-
-- **Inlining too aggressively** — removing a helper that gave a concept a name makes the call site harder to read
-- **Combining unrelated logic** — two simple functions merged into one complex function is not simpler
-- **Removing "unnecessary" abstraction** — some abstractions exist for extensibility or testability, not complexity
-- **Optimizing for line count** — fewer lines is not the goal; easier comprehension is
-
-### 5. Scope to What Changed
-
-Default to simplifying recently modified code. Avoid drive-by refactors of unrelated code unless explicitly asked to broaden scope. Unscoped simplification creates noise in diffs and risks unintended regressions.
-
-## The Simplification Process
-
-### Step 1: Understand Before Touching (Chesterton's Fence)
-
-Before changing or removing anything, understand why it exists. This is Chesterton's Fence: if you see a fence across a road and don't understand why it's there, don't tear it down. First understand the reason, then decide if the reason still applies.
-
-```
-BEFORE SIMPLIFYING, ANSWER:
-- What is this code's responsibility?
-- What calls it? What does it call?
-- What are the edge cases and error paths?
-- Are there tests that define the expected behavior?
-- Why might it have been written this way? (Performance? Platform constraint? Historical reason?)
-- Check git blame: what was the original context for this code?
-```
-
-If you can't answer these, you're not ready to simplify. Read more context first.
-
-### Step 2: Identify Simplification Opportunities
-
-Scan for these patterns — each one is a concrete signal, not a vague smell:
-
-**Structural complexity:**
-
-| Pattern | Signal | Simplification |
-|---------|--------|----------------|
-| Deep nesting (3+ levels) | Hard to follow control flow | Extract conditions into guard clauses or helper functions |
-| Long functions (50+ lines) | Multiple responsibilities | Split into focused functions with descriptive names |
-| Nested ternaries | Requires mental stack to parse | Replace with if/else chains, switch, or lookup objects |
-| Boolean parameter flags | `doThing(true, false, true)` | Replace with options objects or separate functions |
-| Repeated conditionals | Same `if` check in multiple places | Extract to a well-named predicate function |
-
-**Naming and readability:**
-
-| Pattern | Signal | Simplification |
-|---------|--------|----------------|
-| Generic names | `data`, `result`, `temp`, `val`, `item` | Rename to describe the content: `userProfile`, `validationErrors` |
-| Abbreviated names | `usr`, `cfg`, `btn`, `evt` | Use full words unless the abbreviation is universal (`id`, `url`, `api`) |
-| Misleading names | Function named `get` that also mutates state | Rename to reflect actual behavior |
-| Comments explaining "what" | `// increment counter` above `count++` | Delete the comment — the code is clear enough |
-| Comments explaining "why" | `// Retry because the API is flaky under load` | Keep these — they carry intent the code can't express |
-
-**Redundancy:**
-
-| Pattern | Signal | Simplification |
-|---------|--------|----------------|
-| Duplicated logic | Same 5+ lines in multiple places | Extract to a shared function |
-| Dead code | Unreachable branches, unused variables, commented-out blocks | Remove (after confirming it's truly dead) |
-| Unnecessary abstractions | Wrapper that adds no value | Inline the wrapper, call the underlying function directly |
-| Over-engineered patterns | Factory-for-a-factory, strategy-with-one-strategy | Replace with the simple direct approach |
-| Redundant type assertions | Casting to a type that's already inferred | Remove the assertion |
-
-### Step 3: Apply Changes Incrementally
-
-Make one simplification at a time. Run tests after each change. **Submit refactoring changes separately from feature or bug fix changes.** A PR that refactors and adds a feature is two PRs — split them.
-
-```
-FOR EACH SIMPLIFICATION:
-1. Make the change
-2. Run the test suite
-3. If tests pass → commit (or continue to next simplification)
-4. If tests fail → revert and reconsider
-```
-
-Avoid batching multiple simplifications into a single untested change. If something breaks, you need to know which simplification caused it.
-
-**The Rule of 500:** If a refactoring would touch more than 500 lines, invest in automation (codemods, sed scripts, AST transforms) rather than making the changes by hand. Manual edits at that scale are error-prone and exhausting to review.
-
-### Step 4: Verify the Result
-
-After all simplifications, step back and evaluate the whole:
-
-```
-COMPARE BEFORE AND AFTER:
-- Is the simplified version genuinely easier to understand?
-- Did you introduce any new patterns inconsistent with the codebase?
-- Is the diff clean and reviewable?
-- Would a teammate approve this change?
-```
-
-If the "simplified" version is harder to understand or review, revert. Not every simplification attempt succeeds.
-
-## Language-Specific Guidance
-
-### TypeScript / JavaScript
-
+**2. 提前返回（守卫子句）**
 ```typescript
-// SIMPLIFY: Unnecessary async wrapper
-// Before
-async function getUser(id: string): Promise<User> {
-  return await userService.findById(id);
-}
-// After
-function getUser(id: string): Promise<User> {
-  return userService.findById(id);
-}
-
-// SIMPLIFY: Verbose conditional assignment
-// Before
-let displayName: string;
-if (user.nickname) {
-  displayName = user.nickname;
-} else {
-  displayName = user.fullName;
-}
-// After
-const displayName = user.nickname || user.fullName;
-
-// SIMPLIFY: Manual array building
-// Before
-const activeUsers: User[] = [];
-for (const user of users) {
-  if (user.isActive) {
-    activeUsers.push(user);
+// 之前：深层嵌套
+function getUser(id) {
+  if (id) {
+    const user = db.users.find(id);
+    if (user) {
+      if (user.active) {
+        return user;
+      }
+    }
   }
+  return null;
 }
-// After
-const activeUsers = users.filter((user) => user.isActive);
 
-// SIMPLIFY: Redundant boolean return
-// Before
-function isValid(input: string): boolean {
-  if (input.length > 0 && input.length < 100) {
-    return true;
-  }
-  return false;
-}
-// After
-function isValid(input: string): boolean {
-  return input.length > 0 && input.length < 100;
+// 之后：守卫子句
+function getUser(id) {
+  if (!id) return null;
+  const user = db.users.find(id);
+  if (!user) return null;
+  if (!user.active) return null;
+  return user;
 }
 ```
 
-### Python
+**3. 使用有意义的名称**
+```typescript
+// 之前
+const d = new Date();
+const y = d.getFullYear();
 
-```python
-# SIMPLIFY: Verbose dictionary building
-# Before
-result = {}
-for item in items:
-    result[item.id] = item.name
-# After
-result = {item.id: item.name for item in items}
-
-# SIMPLIFY: Nested conditionals with early return
-# Before
-def process(data):
-    if data is not None:
-        if data.is_valid():
-            if data.has_permission():
-                return do_work(data)
-            else:
-                raise PermissionError("No permission")
-        else:
-            raise ValueError("Invalid data")
-    else:
-        raise TypeError("Data is None")
-# After
-def process(data):
-    if data is None:
-        raise TypeError("Data is None")
-    if not data.is_valid():
-        raise ValueError("Invalid data")
-    if not data.has_permission():
-        raise PermissionError("No permission")
-    return do_work(data)
+// 之后
+const today = new Date();
+const currentYear = today.getFullYear();
 ```
 
-### React / JSX
+### 第 4 步：验证行为未改变
 
-```tsx
-// SIMPLIFY: Verbose conditional rendering
-// Before
-function UserBadge({ user }: Props) {
-  if (user.isAdmin) {
-    return <Badge variant="admin">Admin</Badge>;
-  } else {
-    return <Badge variant="default">User</Badge>;
-  }
-}
-// After
-function UserBadge({ user }: Props) {
-  const variant = user.isAdmin ? 'admin' : 'default';
-  const label = user.isAdmin ? 'Admin' : 'User';
-  return <Badge variant={variant}>{label}</Badge>;
-}
+确保简化没有改变行为。
 
-// SIMPLIFY: Prop drilling through intermediate components
-// Before — consider whether context or composition solves this better.
-// This is a judgment call — flag it, don't auto-refactor.
+```markdown
+1. 运行所有测试（应该仍然通过）
+2. 手动测试关键场景（如适用）
+3. 比较简化前后的输出
+4. 审查变更以确保行为一致
 ```
 
-## Common Rationalizations
+## 简化检查清单
 
-| Rationalization | Reality |
+- [ ] 理解当前行为（测试通过）
+- [ ] 识别问题模式
+- [ ] 应用简化技术
+- [ ] 验证行为未改变（测试仍然通过）
+- [ ] 代码比之前更清晰
+- [ ] 没有引入新的复杂性
+
+## 常见合理化
+
+| 合理化 | 现实 |
 |---|---|
-| "It's working, no need to touch it" | Working code that's hard to read will be hard to fix when it breaks. Simplifying now saves time on every future change. |
-| "Fewer lines is always simpler" | A 1-line nested ternary is not simpler than a 5-line if/else. Simplicity is about comprehension speed, not line count. |
-| "I'll just quickly simplify this unrelated code too" | Unscoped simplification creates noisy diffs and risks regressions in code you didn't intend to change. Stay focused. |
-| "The types make it self-documenting" | Types document structure, not intent. A well-named function explains *why* better than a type signature explains *what*. |
-| "This abstraction might be useful later" | Don't preserve speculative abstractions. If it's not used now, it's complexity without value. Remove it and re-add when needed. |
-| "The original author must have had a reason" | Maybe. Check git blame — apply Chesterton's Fence. But accumulated complexity often has no reason; it's just the residue of iteration under pressure. |
-| "I'll refactor while adding this feature" | Separate refactoring from feature work. Mixed changes are harder to review, revert, and understand in history. |
+| "它能工作，不要修复没坏的东西" | 难以维护的代码最终会坏。简化防止未来 bug。 |
+| "重构可以稍后进行" | 技术债务累积利息。越早简化，成本越低。 |
+| "这个代码很复杂，因为它处理的的问题很复杂" | 复杂的问题需要清晰的代码，而不是复杂的代码。 |
+| "我会理解它并重命名" | 如果你需要理解它才能重命名，你需要理解它才能简化。 |
 
-## Red Flags
+## 危险信号
 
-- Simplification that requires modifying tests to pass (you likely changed behavior)
-- "Simplified" code that is longer and harder to follow than the original
-- Renaming things to match your preferences rather than project conventions
-- Removing error handling because "it makes the code cleaner"
-- Simplifying code you don't fully understand
-- Batching many simplifications into one large, hard-to-review commit
-- Refactoring code outside the scope of the current task without being asked
+- 在理解当前行为前更改代码
+- 简化后测试失败
+- 引入新的抽象而不增加清晰度
+- 重命名为了使代码"更酷"而不是更清晰
+- 移除你不理解为什么存在的东西（Chesterton 栅栏）
 
-## Verification
+## 验证
 
-After completing a simplification pass:
+在简化完成后：
 
-- [ ] All existing tests pass without modification
-- [ ] Build succeeds with no new warnings
-- [ ] Linter/formatter passes (no style regressions)
-- [ ] Each simplification is a reviewable, incremental change
-- [ ] The diff is clean — no unrelated changes mixed in
-- [ ] Simplified code follows project conventions (checked against CLAUDE.md or equivalent)
-- [ ] No error handling was removed or weakened
-- [ ] No dead code was left behind (unused imports, unreachable branches)
-- [ ] A teammate or review agent would approve the change as a net improvement
+- [ ] 所有测试通过（行为未改变）
+- [ ] 代码比之前更清晰
+- [ ] 没有引入新的复杂性
+- [ ] 命名具有描述性且一致
+- [ ] 函数短小且专注
+- [ ] 嵌套最小化
+- [ ] 没有重复代码

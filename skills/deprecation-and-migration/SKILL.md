@@ -1,206 +1,208 @@
 ---
 name: deprecation-and-migration
-description: Manages deprecation and migration. Use when removing old systems, APIs, or features. Use when migrating users from one implementation to another. Use when deciding whether to maintain or sunset existing code.
+description: 以最小中断的方式弃用旧系统并迁移用户。当需要移除旧系统、迁移用户或下线功能时使用。当用户要求"如何弃用这个"、"迁移用户"或"下线功能"时使用。
 ---
 
-# Deprecation and Migration
+# 弃用与迁移
 
-## Overview
+## 概览
 
-Code is a liability, not an asset. Every line of code has ongoing maintenance cost — bugs to fix, dependencies to update, security patches to apply, and new engineers to onboard. Deprecation is the discipline of removing code that no longer earns its keep, and migration is the process of moving users safely from the old to the new.
+将代码视为负债。每个功能都是一种承诺——用户依赖它。当你移除某些东西时，你的工作是迁移用户而不会中断他们的工作流程。
 
-Most engineering organizations are good at building things. Few are good at removing them. This skill addresses that gap.
+## 何时使用
 
-## When to Use
+- 移除旧 API 或功能
+- 迁移用户到新系统
+- 下线旧功能
+- 替换遗留系统
+- 用户要求"如何弃用这个"或"迁移用户"
 
-- Replacing an old system, API, or library with a new one
-- Sunsetting a feature that's no longer needed
-- Consolidating duplicate implementations
-- Removing dead code that nobody owns but everybody depends on
-- Planning the lifecycle of a new system (deprecation planning starts at design time)
-- Deciding whether to maintain a legacy system or invest in migration
+## 强制性 vs 建议性弃用
 
-## Core Principles
+| 类型 | 何时使用 | 影响 |
+|------|---------|------|
+| **强制性** | 功能不安全、有 bug 或违反合规 | 用户必须迁移，有明确截止日期 |
+| **建议性** | 更好的替代品存在，但旧功能仍然工作 | 用户选择何时迁移 |
 
-### Code Is a Liability
+**规则：** 建议性弃用不应该中断现有用户。强制性弃用需要清晰的迁移路径和时间表。
 
-Every line of code has ongoing cost: it needs tests, documentation, security patches, dependency updates, and mental overhead for anyone working nearby. The value of code is the functionality it provides, not the code itself. When the same functionality can be provided with less code, less complexity, or better abstractions — the old code should go.
+## 迁移模式
 
-### Hyrum's Law Makes Removal Hard
-
-With enough users, every observable behavior becomes depended on — including bugs, timing quirks, and undocumented side effects. This is why deprecation requires active migration, not just announcement. Users can't "just switch" when they depend on behaviors the replacement doesn't replicate.
-
-### Deprecation Planning Starts at Design Time
-
-When building something new, ask: "How would we remove this in 3 years?" Systems designed with clean interfaces, feature flags, and minimal surface area are easier to deprecate than systems that leak implementation details everywhere.
-
-## The Deprecation Decision
-
-Before deprecating anything, answer these questions:
+### 1. 双运行期（并行运行旧和新）
 
 ```
-1. Does this system still provide unique value?
-   → If yes, maintain it. If no, proceed.
-
-2. How many users/consumers depend on it?
-   → Quantify the migration scope.
-
-3. Does a replacement exist?
-   → If no, build the replacement first. Don't deprecate without an alternative.
-
-4. What's the migration cost for each consumer?
-   → If trivially automated, do it. If manual and high-effort, weigh against maintenance cost.
-
-5. What's the ongoing maintenance cost of NOT deprecating?
-   → Security risk, engineer time, opportunity cost of complexity.
+旧系统  →  仍然处理流量
+新系统  →  并行处理相同流量
+            ↓
+         比较结果，验证新系统
+            ↓
+         切换流量到新系统
 ```
 
-## Compulsory vs Advisory Deprecation
+**优点：** 零停机，可以验证新系统
+**缺点：** 需要双倍基础设施
 
-| Type | When to Use | Mechanism |
-|------|-------------|-----------|
-| **Advisory** | Migration is optional, old system is stable | Warnings, documentation, nudges. Users migrate on their own timeline. |
-| **Compulsory** | Old system has security issues, blocks progress, or maintenance cost is unsustainable | Hard deadline. Old system will be removed by date X. Provide migration tooling. |
+### 2. 特性标志渐进式切换
 
-**Default to advisory.** Use compulsory only when the maintenance cost or risk justifies forcing migration. Compulsory deprecation requires providing migration tooling, documentation, and support — you can't just announce a deadline.
+```typescript
+// 阶段 1：旧系统默认
+if (featureFlags['new-auth-system']) {
+  return newAuthHandler(req, res);
+}
+return legacyAuthHandler(req, res);
 
-## The Migration Process
+// 阶段 2：内部用户切换到新系统
+// 阶段 3：10% 用户切换到新系统
+// 阶段 4：50% 用户切换到新系统
+// 阶段 5：100% 用户切换到新系统
+// 阶段 6：移除旧系统
+```
 
-### Step 1: Build the Replacement
+**优点：** 渐进式风险，基于指标的决策
+**缺点：** 需要特性标志基础设施
 
-Don't deprecate without a working alternative. The replacement must:
+### 3. 逐步弃用通知
 
-- Cover all critical use cases of the old system
-- Have documentation and migration guides
-- Be proven in production (not just "theoretically better")
+```
+第 1 个月：  添加弃用警告（不中断）
+第 2 个月：  增加警告频率，提供迁移指南
+第 3 个月：  发送迁移截止日期通知
+第 4 个月：  旧系统开始返回错误
+第 5 个月：  移除旧系统
+```
 
-### Step 2: Announce and Document
+**优点：** 用户有充足时间准备
+**缺点：** 需要维护两个系统更长时间
+
+## 弃用通知
+
+提供清晰、具体的弃用通知：
+
+```typescript
+// API 响应中的弃用头
+res.set('Deprecation', 'true');
+res.set('Sunset', 'Wed, 31 Dec 2025 23:59:59 GMT');
+res.set('Link', '<https://docs.example.com/migration>; rel="successor"');
+
+// 响应体中的弃用警告
+{
+  "data": {...},
+  "warnings": [
+    {
+      "code": "DEPRECATED_API",
+      "message": "此 API 将在 2025 年 12 月 31 日弃用。请使用 /api/v2/tasks 代替。",
+      "documentation": "https://docs.example.com/migration/task-api"
+    }
+  ]
+}
+```
+
+## 迁移指南
+
+每个弃用都应该有迁移指南：
 
 ```markdown
-## Deprecation Notice: OldService
+# 从 v1 任务 API 迁移到 v2
 
-**Status:** Deprecated as of 2025-03-01
-**Replacement:** NewService (see migration guide below)
-**Removal date:** Advisory — no hard deadline yet
-**Reason:** OldService requires manual scaling and lacks observability.
-            NewService handles both automatically.
+## 变更摘要
+- 端点从 `/api/tasks` 更改为 `/api/v2/tasks`
+- 响应格式从 `camelCase` 更改为 `snake_case`
+- 认证从 API 密钥更改为 JWT
 
-### Migration Guide
-1. Replace `import { client } from 'old-service'` with `import { client } from 'new-service'`
-2. Update configuration (see examples below)
-3. Run the migration verification script: `npx migrate-check`
+## 迁移步骤
+
+### 1. 更新端点
+```diff
+- const response = await fetch('/api/tasks');
++ const response = await fetch('/api/v2/tasks');
 ```
 
-### Step 3: Migrate Incrementally
-
-Migrate consumers one at a time, not all at once. For each consumer:
-
-```
-1. Identify all touchpoints with the deprecated system
-2. Update to use the replacement
-3. Verify behavior matches (tests, integration checks)
-4. Remove references to the old system
-5. Confirm no regressions
+### 2. 更新响应处理
+```diff
+- const tasks = response.data.taskList;
++ const tasks = response.data.task_list;
 ```
 
-**The Churn Rule:** If you own the infrastructure being deprecated, you are responsible for migrating your users — or providing backward-compatible updates that require no migration. Don't announce deprecation and leave users to figure it out.
-
-### Step 4: Remove the Old System
-
-Only after all consumers have migrated:
-
-```
-1. Verify zero active usage (metrics, logs, dependency analysis)
-2. Remove the code
-3. Remove associated tests, documentation, and configuration
-4. Remove the deprecation notices
-5. Celebrate — removing code is an achievement
+### 3. 更新认证
+```diff
+- headers: { 'X-API-Key': apiKey }
++ headers: { 'Authorization': `Bearer ${jwtToken}` }
 ```
 
-## Migration Patterns
+## 常见问题
+- [迁移后我的旧 API 密钥还有效吗？](#q1)
+- [v2 API 支持分页吗？](#q2)
 
-### Strangler Pattern
-
-Run old and new systems in parallel. Route traffic incrementally from old to new. When the old system handles 0% of traffic, remove it.
-
-```
-Phase 1: New system handles 0%, old handles 100%
-Phase 2: New system handles 10% (canary)
-Phase 3: New system handles 50%
-Phase 4: New system handles 100%, old system idle
-Phase 5: Remove old system
+## 需要帮助？
+查看 [完整迁移文档](https://docs.example.com/migration) 或联系支持。
 ```
 
-### Adapter Pattern
+## 僵尸代码清理
 
-Create an adapter that translates calls from the old interface to the new implementation. Consumers keep using the old interface while you migrate the backend.
+迁移后，清理旧代码：
 
-```typescript
-// Adapter: old interface, new implementation
-class LegacyTaskService implements OldTaskAPI {
-  constructor(private newService: NewTaskService) {}
-
-  // Old method signature, delegates to new implementation
-  getTask(id: number): OldTask {
-    const task = this.newService.findById(String(id));
-    return this.toOldFormat(task);
-  }
-}
+```bash
+# 识别未使用的代码
+git log --all --oneline --source --remotes --grep="deprecated"
+# 检查是否有引用
+git grep "legacyAuthHandler"
+# 安全删除
+git rm src/auth/legacy.ts
+git commit -m "chore: 移除已弃用的认证系统"
 ```
 
-### Feature Flag Migration
+**规则：** 在迁移完成后至少等待一个发布周期再删除旧代码。这为意外回滚提供了缓冲。
 
-Use feature flags to switch consumers from old to new system one at a time:
+## 回滚计划
 
-```typescript
-function getTaskService(userId: string): TaskService {
-  if (featureFlags.isEnabled('new-task-service', { userId })) {
-    return new NewTaskService();
-  }
-  return new LegacyTaskService();
-}
+每个迁移都应该有回滚计划：
+
+```markdown
+# 迁移回滚计划
+
+## 触发条件
+- 错误率 > 1%
+- 响应时间 p95 > 500ms
+- 用户报告关键功能失败
+
+## 回滚步骤
+1. 将特性标志 `new-auth-system` 设置为 `false`
+2. 验证流量已切换回旧系统
+3. 调查新系统中的问题
+4. 修复后重新部署
+
+## 回滚验证
+- [ ] 错误率回到基线
+- [ ] 响应时间在可接受范围内
+- [ ] 用户可以正常登录
 ```
 
-## Zombie Code
+## 常见合理化
 
-Zombie code is code that nobody owns but everybody depends on. It's not actively maintained, has no clear owner, and accumulates security vulnerabilities and compatibility issues. Signs:
-
-- No commits in 6+ months but active consumers exist
-- No assigned maintainer or team
-- Failing tests that nobody fixes
-- Dependencies with known vulnerabilities that nobody updates
-- Documentation that references systems that no longer exist
-
-**Response:** Either assign an owner and maintain it properly, or deprecate it with a concrete migration plan. Zombie code cannot stay in limbo — it either gets investment or removal.
-
-## Common Rationalizations
-
-| Rationalization | Reality |
+| 合理化 | 现实 |
 |---|---|
-| "It still works, why remove it?" | Working code that nobody maintains accumulates security debt and complexity. Maintenance cost grows silently. |
-| "Someone might need it later" | If it's needed later, it can be rebuilt. Keeping unused code "just in case" costs more than rebuilding. |
-| "The migration is too expensive" | Compare migration cost to ongoing maintenance cost over 2-3 years. Migration is usually cheaper long-term. |
-| "We'll deprecate it after we finish the new system" | Deprecation planning starts at design time. By the time the new system is done, you'll have new priorities. Plan now. |
-| "Users will migrate on their own" | They won't. Provide tooling, documentation, and incentives — or do the migration yourself (the Churn Rule). |
-| "We can maintain both systems indefinitely" | Two systems doing the same thing is double the maintenance, testing, documentation, and onboarding cost. |
+| "我们可以直接切换" | 直接切换中断用户。渐进式迁移更安全。 |
+| "没有人使用那个旧功能" | 直到你移除它并发现有人使用。通知所有用户。 |
+| "迁移指南太复杂" | 没有迁移指南的弃用是用户的主意差。投资指南。 |
+| "我们可以稍后清理" | 僵尸代码累积技术债务。在迁移后清理。 |
 
-## Red Flags
+## 危险信号
 
-- Deprecated systems with no replacement available
-- Deprecation announcements with no migration tooling or documentation
-- "Soft" deprecation that's been advisory for years with no progress
-- Zombie code with no owner and active consumers
-- New features added to a deprecated system (invest in the replacement instead)
-- Deprecation without measuring current usage
-- Removing code without verifying zero active consumers
+- 没有通知用户的弃用
+- 没有迁移指南的 API 变更
+- 没有回滚计划的迁移
+- 在迁移前不双运行验证
+- 移除代码后不等待一个发布周期
+- 没有监控迁移影响
 
-## Verification
+## 验证
 
-After completing a deprecation:
+迁移后：
 
-- [ ] Replacement is production-proven and covers all critical use cases
-- [ ] Migration guide exists with concrete steps and examples
-- [ ] All active consumers have been migrated (verified by metrics/logs)
-- [ ] Old code, tests, documentation, and configuration are fully removed
-- [ ] No references to the deprecated system remain in the codebase
-- [ ] Deprecation notices are removed (they served their purpose)
+- [ ] 用户已收到弃用通知
+- [ ] 迁移指南已提供
+- [ ] 双运行验证已执行
+- [ ] 特性标志控制迁移进度
+- [ ] 监控已设置以检测问题
+- [ ] 回滚计划已测试
+- [ ] 旧代码在缓冲期后已清理

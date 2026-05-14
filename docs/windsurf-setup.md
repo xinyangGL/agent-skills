@@ -1,13 +1,13 @@
-# Using agent-skills with Windsurf
+# 在 Windsurf 中使用 agent-skills
 
-## Setup
+## 设置
 
-### Project Rules
+### 项目规则
 
-Windsurf uses `.windsurfrules` for project-specific agent instructions:
+Windsurf 使用 `.windsurfrules` 进行项目特定的代理指令：
 
 ```bash
-# Create a combined rules file from your most important skills
+# 从你最重要的技能创建组合规则文件
 cat /path/to/agent-skills/skills/test-driven-development/SKILL.md > .windsurfrules
 echo "\n---\n" >> .windsurfrules
 cat /path/to/agent-skills/skills/incremental-implementation/SKILL.md >> .windsurfrules
@@ -15,34 +15,34 @@ echo "\n---\n" >> .windsurfrules
 cat /path/to/agent-skills/skills/code-review-and-quality/SKILL.md >> .windsurfrules
 ```
 
-### Global Rules
+### 全局规则
 
-For skills you want across all projects, add them to Windsurf's global rules:
+对于你希望跨所有项目使用的技能，将它们添加到 Windsurf 的全局规则：
 
-1. Open Windsurf → Settings → AI → Global Rules
-2. Paste the content of your most-used skills
+1. 打开 Windsurf → 设置 → AI → 全局规则
+2. 粘贴你最常用的技能内容
 
-## Recommended Configuration
+## 推荐配置
 
-Keep `.windsurfrules` focused on 2-3 essential skills to stay within context limits:
+将 `.windsurfrules` 专注于 2-3 个基本技能以保持在上下文限制内：
 
 ```
 # .windsurfrules
-# Essential agent-skills for this project
+# 此项目的基本 agent-skills
 
-[Paste test-driven-development SKILL.md]
-
----
-
-[Paste incremental-implementation SKILL.md]
+[粘贴 test-driven-development SKILL.md]
 
 ---
 
-[Paste code-review-and-quality SKILL.md]
+[粘贴 incremental-implementation SKILL.md]
+
+---
+
+[粘贴 code-review-and-quality SKILL.md]
 ```
 
-## Usage Tips
+## 使用提示
 
-1. **Be selective** — Windsurf's context is limited. Choose skills that address your biggest quality gaps.
-2. **Reference in conversation** — Paste additional skill content into the chat when working on specific phases (e.g., paste `security-and-hardening` when building auth).
-3. **Use references as checklists** — Paste `references/security-checklist.md` and ask Windsurf to verify each item.
+1. **选择性加载** —— Windsurf 的上下文有限。选择解决你最大质量缺口的技能。
+2. **在对话中引用** —— 处理特定阶段时将额外技能内容粘贴到聊天中（例如，构建认证时粘贴 `security-and-hardening`）。
+3. **将参考用作检查清单** —— 粘贴 `references/security-checklist.md` 并要求 Windsurf 验证每一项。

@@ -1,24 +1,24 @@
-# Skill Anatomy
+# 技能结构
 
-This document describes the structure and format of agent-skills skill files. Use this as a guide when contributing new skills or understanding existing ones.
+本文档描述 agent-skills 技能文件的结构和格式。在贡献新技能或理解现有技能时，将其作为指南。
 
-## File Location
+## 文件位置
 
-Every skill lives in its own directory under `skills/`:
+每个技能位于 `skills/` 下的自己的目录中：
 
 ```
 skills/
   skill-name/
-    SKILL.md           # Required: The skill definition
-    scripts/           # Optional: Runnable helpers used by the skill workflow
-    supporting-file.md # Optional: Reference material loaded on demand
+    SKILL.md           # 必需：技能定义
+    scripts/           # 可选：技能工作流使用的可运行辅助工具
+    supporting-file.md # 可选：按需加载的参考资料
 ```
 
-`SKILL.md` is the only required file. Add `scripts/` only when the skill actually ships runnable helpers, and omit the directory entirely for markdown-only skills.
+`SKILL.md` 是唯一必需的文件。仅当技能实际随附可运行辅助工具时才添加 `scripts/`，对于纯 markdown 技能完全省略该目录。
 
-## SKILL.md Format
+## SKILL.md 格式
 
-### Frontmatter (Required)
+### Frontmatter（必需）
 
 ```yaml
 ---
@@ -27,123 +27,123 @@ description: Guides agents through [task/workflow]. Use when [specific trigger c
 ---
 ```
 
-**Rules:**
-- `name`: Lowercase, hyphen-separated. Must match the directory name.
-- `description`: Start with what the skill does in third person, then include one or more clear "Use when" trigger conditions. Include both *what* and *when*. Maximum 1024 characters.
+**规则：**
+- `name`：小写，连字符分隔。必须匹配目录名。
+- `description`：以第三人称描述技能做什么开头，然后包含一个或多个清晰的"Use when"触发条件。包含*什么*和*何时*。最多 1024 个字符。
 
-**Why this matters:** Agents discover skills by reading descriptions. The description is injected into the system prompt, so it must tell the agent both what the skill provides and when to activate it. Do not summarize the workflow — if the description contains process steps, the agent may follow the summary instead of reading the full skill.
+**为什么这很重要：** 代理通过读取描述发现技能。描述被注入系统提示，所以它必须告诉代理技能提供什么以及何时激活它。不要总结工作流 —— 如果描述包含流程步骤，代理可能会遵循摘要而不是读取完整技能。
 
-### Standard Sections (Recommended Pattern)
+### 标准节（推荐模式）
 
-The frontmatter contract above is required. The section layout below is a recommended pattern, not a rigid template: equivalent headings are acceptable when they serve the same purpose clearly.
+上述 frontmatter 契约是必需的。以下节布局是推荐模式，不是严格模板：当等价标题能清楚服务于相同目的时是可以接受的。
 
 ```markdown
-# Skill Title
+# 技能标题
 
-## Overview
-One-two sentences explaining what this skill does and why it matters.
+## 概览
+解释此技能做什么以及为什么重要的 1-2 句话。
 
-## When to Use
-- Bullet list of triggering conditions (symptoms, task types)
-- When NOT to use (exclusions)
+## 何时使用
+- 触发条件的要点列表（症状、任务类型）
+- 何时不使用（排除）
 
-## [Core Process / The Workflow / Steps]
-The main workflow, broken into numbered steps or phases.
-Include code examples where they help.
-Use flowcharts (ASCII) where decision points exist.
+## [核心流程 / 工作流 / 步骤]
+主要工作流，分解为编号步骤或阶段。
+在有帮助时包含代码示例。
+在存在决策点时使用流程图（ASCII）。
 
-## [Specific Techniques / Patterns]
-Detailed guidance for specific scenarios.
-Code examples, templates, configuration.
+## [具体技术 / 模式]
+特定场景的详细指导。
+代码示例、模板、配置。
 
-## Common Rationalizations
-| Rationalization | Reality |
+## 常见合理化
+| 合理化 | 现实 |
 |---|---|
-| Excuse agents use to skip steps | Why the excuse is wrong |
+| 代理用来跳过步骤的借口 | 为什么借口是错的 |
 
-## Red Flags
-- Behavioral patterns indicating the skill is being violated
-- Things to watch for during review
+## 危险信号
+- 指示技能被违反的行为模式
+- 审查期间要注意的事情
 
-## Verification
-After completing the skill's process, confirm:
-- [ ] Checklist of exit criteria
-- [ ] Evidence requirements
+## 验证
+完成技能流程后，确认：
+- [ ] 退出标准检查清单
+- [ ] 证据要求
 ```
 
-## Section Purposes
+## 节的作用
 
-### Overview
-The "elevator pitch" for the skill. Should answer: What does this skill do, and why should an agent follow it?
+### 概览
+技能的"电梯演讲"。应该回答：此技能做什么，以及为什么代理应该遵循它？
 
-### When to Use
-Helps agents and humans decide if this skill applies to the current task. Include both positive triggers ("Use when X") and negative exclusions ("NOT for Y").
+### 何时使用
+帮助代理和人类判断此技能是否适用于当前任务。包含正触发器（"当 X 时使用"）和负排除（"不用于 Y"）。
 
-### Core Process
-The heart of the skill. This is the step-by-step workflow the agent follows. Must be specific and actionable — not vague advice.
+### 核心流程
+技能的核心。这是代理遵循的逐步工作流。必须具体且可操作 —— 不是模糊的建议。
 
-**Good:** "Run `npm test` and verify all tests pass"
-**Bad:** "Make sure the tests work"
+**好：** "运行 `npm test` 并验证所有测试通过"
+**差：** "确保测试工作"
 
-### Common Rationalizations
-The most distinctive feature of well-crafted skills. These are excuses agents use to skip important steps, paired with rebuttals. They prevent the agent from rationalizing its way out of following the process.
+### 常见合理化
+精心制作技能的最独特特征。这些是代理用来跳过重要步骤的借口，配对反驳。它们防止代理通过合理化方式逃避遵循流程。
 
-Think of every time an agent has said "I'll add tests later" or "This is simple enough to skip the spec" — those go here with a factual counter-argument.
+想想代理每次说"我稍后添加测试"或"这足够简单，可以跳过规格" —— 这些在这里带有事实性反驳。
 
-### Red Flags
-Observable signs that the skill is being violated. Useful during code review and self-monitoring.
+### 危险信号
+技能被违反的可观察迹象。在代码审查和自检期间有用。
 
-### Verification
-The exit criteria. A checklist the agent uses to confirm the skill's process is complete. Every checkbox should be verifiable with evidence (test output, build result, screenshot, etc.).
+### 验证
+退出标准。代理用来确认技能流程完成的检查清单。每个复选框都需要证据（测试输出、构建结果、截图等）。
 
-## Supporting Files
+## 辅助文件
 
-Create supporting files only when:
-- Reference material exceeds 100 lines (keep the main SKILL.md focused)
-- Code tools or scripts are needed
-- Checklists are long enough to justify separate files
+仅当以下条件满足时创建辅助文件：
+- 参考资料超过 100 行（保持主 SKILL.md 专注）
+- 需要代码工具或脚本
+- 检查清单足够长，证明单独文件合理
 
-Keep patterns and principles inline when under 50 lines.
+当少于 50 行时将模式和原则内联。
 
-If a skill does not need runnable helpers, do not create an empty `scripts/` directory just to mirror other skills. Empty directories add noise without changing how the skill works.
+如果技能不需要可运行辅助工具，不要创建空的 `scripts/` 目录仅仅为了镜像其他技能。空目录添加噪声而不改变技能工作方式。
 
-## Writing Principles
+## 写作原则
 
-1. **Process over knowledge.** Skills are workflows, not reference docs. Steps, not facts.
-2. **Specific over general.** "Run `npm test`" beats "verify the tests".
-3. **Evidence over assumption.** Every verification checkbox requires proof.
-4. **Anti-rationalization.** Every skip-worthy step needs a counter-argument in the rationalizations table.
-5. **Progressive disclosure.** Main SKILL.md is the entry point. Supporting files are loaded only when needed.
-6. **Token-conscious.** Every section must justify its inclusion. If removing it wouldn't change agent behavior, remove it.
+1. **流程优先于知识。** 技能是工作流，不是参考文档。步骤，不是事实。
+2. **具体优先于通用。** "运行 `npm test`" 优于 "验证测试"。
+3. **证据优先于假设。** 每个验证复选框都需要证明。
+4. **反合理化。** 每个值得跳过的步骤需要在合理化表中有一个反驳。
+5. **渐进式披露。** 主 SKILL.md 是入口点。辅助文件仅在需要时加载。
+6. **意识化 token。** 每个节必须证明其包含的合理性。如果移除它不会改变代理行为，移除它。
 
-## Naming Conventions
+## 命名约定
 
-- Skill directories: `lowercase-hyphen-separated`
-- Skill files: `SKILL.md` (always uppercase)
-- Supporting files: `lowercase-hyphen-separated.md`
-- References: stored in `references/` at the project root, not inside skill directories
+- 技能目录：`lowercase-hyphen-separated`
+- 技能文件：`SKILL.md`（始终大写）
+- 辅助文件：`lowercase-hyphen-separated.md`
+- 参考：存储在项目的 `references/` 中，不在技能目录内
 
-## Cross-Skill References
+## 跨技能引用
 
-Reference other skills by name:
+通过名称引用其他技能：
 
 ```markdown
-Follow the `test-driven-development` skill for writing tests.
-If the build breaks, use the `debugging-and-error-recovery` skill.
+遵循 `test-driven-development` 技能编写测试。
+如果构建中断，使用 `debugging-and-error-recovery` 技能。
 ```
 
-Don't duplicate content between skills — reference and link instead.
+不要在技能之间重复内容 —— 改为引用和链接。
 
-## Required vs Recommended
+## 必需 vs 推荐
 
-Required:
+必需：
 
-- A `skills/<skill-name>/SKILL.md` file
-- Valid YAML frontmatter with `name` and `description`
-- A description that includes both what the skill does and when to use it
+- `skills/<skill-name>/SKILL.md` 文件
+- 带有 `name` 和 `description` 的有效 YAML frontmatter
+- 包含技能做什么和何时使用的描述
 
-Recommended:
+推荐：
 
-- The standard section flow shown above
-- Equivalent headings such as `How It Works`, `Core Process`, or `Workflow` when they read more naturally for the skill
-- Supporting files only when they keep the main `SKILL.md` focused
+- 上述标准节流
+- 当它们对技能读起来更自然时，等价标题如 `How It Works`、`Core Process` 或 `Workflow`
+- 仅当它们保持主 `SKILL.md` 专注时才使用辅助文件

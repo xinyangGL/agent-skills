@@ -1,208 +1,208 @@
-# Orchestration Patterns
+# 编排模式
 
-Reference catalog of agent orchestration patterns this repo endorses, plus anti-patterns to avoid. Read this before adding a new slash command that coordinates multiple personas, or before introducing a new persona that "wraps" existing ones.
+本仓库认可的代理编排模式参考目录，以及要避免的反模式。在添加协调多个角色的新斜杠命令之前，或引入"包装"现有角色的新角色之前，请阅读此文件。
 
-The governing rule: **the user (or a slash command) is the orchestrator. Personas do not invoke other personas.** Skills are mandatory hops inside a persona's workflow.
-
----
-
-## Endorsed patterns
-
-### 1. Direct invocation (no orchestration)
-
-Single persona, single perspective, single artifact. The default and the cheapest option.
-
-```
-user → code-reviewer → report → user
-```
-
-**Use when:** the work is one perspective on one artifact and you can describe it in one sentence.
-
-**Examples:**
-- "Review this PR" → `code-reviewer`
-- "Find security issues in `auth.ts`" → `security-auditor`
-- "What tests are missing for the checkout flow?" → `test-engineer`
-
-**Cost:** one round trip. The baseline you should always compare orchestrated patterns against.
+治理规则：**用户（或斜杠命令）是编排者。角色不调用其他角色。** 技能是角色工作流中的必经步骤。
 
 ---
 
-### 2. Single-persona slash command
+## 认可的模式
 
-A slash command that wraps one persona with the project's skills. Saves the user from re-explaining the workflow every time.
+### 1. 直接调用（无编排）
+
+单一角色，单一视角，单一工件。默认且最便宜的选项。
 
 ```
-/review → code-reviewer (with code-review-and-quality skill) → report
+用户 → code-reviewer → 报告 → 用户
 ```
 
-**Use when:** the same single-persona invocation happens repeatedly with the same setup.
+**何时使用：** 工作是对一个工件的一个视角，你可以用一句话描述它。
 
-**Examples in this repo:** `/review`, `/test`, `/code-simplify`.
+**示例：**
+- "审查这个 PR" → `code-reviewer`
+- "在 `auth.ts` 中查找安全问题" → `security-auditor`
+- "结账流程缺少哪些测试？" → `test-engineer`
 
-**Cost:** same as direct invocation. The slash command is just a saved prompt.
-
-**Anti-signal:** if the slash command's body is mostly "decide which persona to call," delete it and let the user call the persona directly.
+**成本：** 一次往返。你应该始终将编排模式与此基线进行比较。
 
 ---
 
-### 3. Parallel fan-out with merge
+### 2. 单一角色的斜杠命令
 
-Multiple personas operate on the same input concurrently, each producing an independent report. A merge step (in the main agent's context) synthesizes them into a single decision.
+一个斜杠命令用项目的技能包装一个角色。节省用户每次都重新解释工作流的麻烦。
+
+```
+/review → code-reviewer（带 code-review-and-quality 技能）→ 报告
+```
+
+**何时使用：** 相同的单一角色调用以相同的设置重复发生。
+
+**本仓库中的示例：** `/review`、`/test`、`/code-simplify`。
+
+**成本：** 与直接调用相同。斜杠命令只是一个保存的提示。
+
+**反信号：** 如果斜杠命令的主体主要是"决定调用哪个角色"，删除它并让用户直接调用角色。
+
+---
+
+### 3. 并行扇出加合并
+
+多个角色同时操作相同的输入，每个产生独立的报告。合并步骤（在主代理的上下文中）将它们综合为单一决策。
 
 ```
                     ┌─→ code-reviewer    ─┐
-/ship → fan out  ───┼─→ security-auditor ─┤→ merge → go/no-go + rollback
+/ship → 扇出 ────┼─→ security-auditor ─┤→ 合并 → go/no-go + 回滚
                     └─→ test-engineer    ─┘
 ```
 
-**Use when:**
-- The sub-tasks are genuinely independent (no shared mutable state, no ordering dependency)
-- Each sub-agent benefits from its own context window
-- The merge step is small enough to stay in the main context
-- Wall-clock latency matters
+**何时使用：**
+- 子任务真正独立（无共享可变状态，无顺序依赖）
+- 每个子代理受益于自己的上下文窗口
+- 合并步骤小到足以留在主上下文中
+- 墙钟延迟很重要
 
-**Examples in this repo:** `/ship`.
+**本仓库中的示例：** `/ship`。
 
-**Cost:** N parallel sub-agent contexts + one merge turn. Higher than direct invocation, but faster wall-clock and produces better reports because each sub-agent stays focused on its single perspective.
+**成本：** N 个并行子代理上下文 + 一次合并回合。高于直接调用，但墙钟时间更快，并且由于每个子代理专注于单一视角，产生更好的报告。
 
-**Validation checklist before adopting this pattern:**
-- [ ] Can I run all sub-agents at the same time without ordering issues?
-- [ ] Does each persona produce a different *kind* of finding, not just the same finding from a different angle?
-- [ ] Will the merge step fit in the main agent's remaining context?
-- [ ] Is the user's wait time long enough that parallelism is actually noticeable?
+**采用此模式前的验证检查清单：**
+- [ ] 我可以同时运行所有子代理而不会出现顺序问题吗？
+- [ ] 每个角色产生的发现是*不同类型*的，而不仅仅是不同角度发现的相同东西吗？
+- [ ] 合并步骤能适配主代理的剩余上下文吗？
+- [ ] 用户的等待时间足够长，使得并行化实际上 noticeable 吗？
 
-If any answer is "no," fall back to direct invocation or a single-persona command.
-
----
-
-### 4. Sequential pipeline as user-driven slash commands
-
-The user runs slash commands in a defined order, carrying context (or commit history) between them. There is no orchestrator agent — the user IS the orchestrator.
-
-```
-user runs:  /spec  →  /plan  →  /build  →  /test  →  /review  →  /ship
-```
-
-**Use when:** the workflow has dependencies (each step needs the previous step's output) and human judgment between steps adds value.
-
-**Examples in this repo:** the entire DEFINE → PLAN → BUILD → VERIFY → REVIEW → SHIP lifecycle.
-
-**Cost:** one sub-agent context per step. Free for the orchestration layer because there is no orchestrator agent.
-
-**Why not automate it:** an LLM "lifecycle orchestrator" would (a) lose nuance between steps because it has to summarize for hand-off, (b) skip the human checkpoints that catch wrong-direction work early, and (c) double the token cost via paraphrasing turns.
+如果任何答案是"否"，回退到直接调用或单一角色命令。
 
 ---
 
-### 5. Research isolation (context preservation)
+### 4. 用户驱动的斜杠命令顺序管道
 
-When a task requires reading large amounts of material that shouldn't pollute the main context, spawn a research sub-agent that returns only a digest.
+用户按定义的顺序运行斜杠命令，在它们之间携带上下文（或提交历史）。没有编排代理 —— 用户*就是*编排者。
 
 ```
-main agent → research sub-agent (reads 50 files) → digest → main agent continues
+用户运行：  /spec  →  /plan  →  /build  →  /test  →  /review  →  /ship
 ```
 
-**Use when:**
-- The main session needs to stay focused on a downstream task
-- The investigation result is much smaller than the input it consumes
-- The decision quality benefits from the main agent having room to think after
+**何时使用：** 工作流有依赖关系（每个步骤需要前一个步骤的输出），并且步骤之间的人类判断有价值。
 
-**Examples:** "Find every call site of this deprecated API across the monorepo," "Summarize what these 30 ADRs say about caching."
+**本仓库中的示例：** 整个 DEFINE → PLAN → BUILD → VERIFY → REVIEW → SHIP 生命周期。
 
-**Cost:** one isolated sub-agent context. Worth it any time the alternative is loading hundreds of files into the main context.
+**成本：** 每步一个子代理上下文。对编排层免费，因为没有编排代理。
 
-**On Claude Code, use the built-in `Explore` subagent** rather than defining a custom research persona. `Explore` runs on Haiku, is denied write/edit tools, and is purpose-built for this pattern. Define a custom research subagent only when `Explore` doesn't fit (e.g. you need a domain-specific system prompt the model wouldn't infer).
+**为什么不自动化它：** LLM"生命周期编排者"会 (a) 在步骤之间丢失细微差别，因为它必须总结以移交，(b) 跳过捕获错误方向工作的人类检查点，(c) 通过转述回合使 token 成本翻倍。
 
 ---
 
-## Claude Code compatibility
+### 5. 研究隔离（上下文保留）
 
-This catalog is harness-agnostic, but most readers will run it on Claude Code. Here's how each pattern maps onto Claude Code's primitives — and where the platform enforces our rules for us.
+当任务需要读取大量不应污染主上下文的材料时，生成一个研究子代理，只返回摘要。
 
-### Where personas live
+```
+主代理 → 研究子代理（读取 50 个文件）→ 摘要 → 主代理继续
+```
 
-Plugin subagents go in `agents/` at the plugin root. This repo is a plugin (`.claude-plugin/plugin.json`), so `agents/code-reviewer.md`, `agents/security-auditor.md`, and `agents/test-engineer.md` are auto-discovered when the plugin is enabled. No path configuration needed.
+**何时使用：**
+- 主会话需要专注于下游任务
+- 调查结果比它消耗的输入小得多
+- 决策质量受益于主代理在之后有思考空间
 
-### Subagents vs. Agent Teams
+**示例：** "在单体仓库中查找这个已弃用 API 的每个调用点"，"总结这 30 个 ADR 关于缓存的说法"。
 
-Claude Code has two parallelism primitives. Pattern 3 (parallel fan-out with merge) maps to **subagents**. If you need teammates that talk to each other, use **Agent Teams** instead.
+**成本：** 一个隔离的子代理上下文。只要替代方案是将数百个文件加载到主上下文中，它就值得。
 
-| | Subagents | Agent Teams |
+**在 Claude Code 上，使用内置的 `Explore` 子代理** 而不是定义自定义研究角色。`Explore` 运行在 Haiku 上，被拒绝写入/编辑工具，并且专为此模式构建。仅当 `Explore` 不适合时（例如你需要模型不会推断的特定领域系统提示）才定义自定义研究子代理。
+
+---
+
+## Claude Code 兼容性
+
+此目录是框架无关的，但大多数读者会在 Claude Code 上运行它。以下是每个模式如何映射到 Claude Code 的原语 —— 以及平台在哪里为我们强制执行规则。
+
+### 角色在哪里
+
+插件子代理放在插件根目录的 `agents/` 中。本仓库是一个插件（`.claude-plugin/plugin.json`），所以当插件启用时，`agents/code-reviewer.md`、`agents/security-auditor.md` 和 `agents/test-engineer.md` 会自动发现。不需要路径配置。
+
+### 子代理 vs Agent Teams
+
+Claude Code 有两个并行原语。模式 3（并行扇出加合并）映射到**子代理**。如果你需要互相交谈的队友，使用**Agent Teams**。
+
+| | 子代理 | Agent Teams |
 |--|-----------|-------------|
-| Coordination | Main agent fans out, sub-agents only report back | Teammates message each other, share a task list |
-| Context | Own context window per subagent | Own context window per teammate |
-| When to use | Independent tasks producing reports | Collaborative work needing discussion |
-| Status | Stable | Experimental — requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` |
-| Cost | Lower | Higher — each teammate is a separate Claude instance |
+| 协调 | 主代理扇出，子代理只报告回 | 队友互相发消息，共享任务列表 |
+| 上下文 | 每个子代理自己的上下文窗口 | 每个队友自己的上下文窗口 |
+| 何时使用 | 产生报告的独立任务 | 需要讨论的协作工作 |
+| 状态 | 稳定 | 实验性 —— 需要 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` |
+| 成本 | 较低 | 较高 —— 每个队友是单独的 Claude 实例 |
 
-**The personas in this repo work in both modes.** When spawned as subagents (e.g. by `/ship`), they report findings to the main session. When spawned as teammates (`Spawn a teammate using the security-auditor agent type…`), they can challenge each other's findings directly. The persona definition is the same; only the spawning context changes.
+**本仓库中的角色在这两种模式下都能工作。** 当作为子代理生成时（例如通过 `/ship`），它们向主会话报告发现。当作为队友生成时（`使用 security-auditor 代理类型生成队友…`），它们可以直接质疑彼此的发现。角色定义相同；只有生成上下文改变。
 
-One subtlety: the `skills` and `mcpServers` frontmatter fields in a persona are honored when it runs as a subagent but **ignored when it runs as a teammate** — teammates load skills and MCP servers from your project and user settings, the same as a regular session. If a persona depends on a specific skill or MCP server being loaded, configure it at the session level so it's available in both modes.
+一个细微差别：角色中的 `skills` 和 `mcpServers` frontmatter 字段在它作为子代理运行时被尊重，但**作为队友运行时被忽略** —— 队友从你的项目和用户设置加载技能和 MCP 服务器，与常规会话相同。如果角色依赖于加载特定技能或 MCP 服务器，在会话级别配置它，以便它在两种模式下都可用。
 
-### Platform-enforced rules
+### 平台强制执行的规则
 
-Two rules in this catalog aren't just convention — Claude Code enforces them:
+此目录中的两条规则不仅仅是惯例 —— Claude Code 强制执行它们：
 
-- **"Subagents cannot spawn other subagents"** (verbatim from the docs). Anti-pattern B (persona-calls-persona) and Anti-pattern D (deep persona trees) cannot exist on Claude Code by construction.
-- **"No nested teams"** — teammates cannot spawn their own teams. Same anti-patterns blocked at the team level.
+- **"子代理不能生成其他子代理"**（逐字来自文档）。反模式 B（角色调用角色）和反模式 D（深层角色树）在 Claude Code 上不能存在，这是由构造决定的。
+- **"无嵌套团队"** —— 队友不能生成自己的团队。在团队级别阻止相同的反模式。
 
-This means you can adopt the patterns in this catalog without worrying about contributors accidentally building the anti-patterns. They'll just fail to load.
+这意味着你可以采用此目录中的模式，而不必担心贡献者意外构建反模式。它们将无法加载。
 
-### Built-in subagents to know about
+### 需要了解的内建子代理
 
-Before defining a custom subagent, check whether one of these covers the role:
+在定义自定义子代理之前，检查这些之一是否覆盖该角色：
 
-| Built-in | Purpose |
+| 内建 | 用途 |
 |----------|---------|
-| `Explore` | Read-only codebase search and analysis. Use this for Pattern 5 (research isolation). |
-| `Plan` | Read-only research during plan mode. |
-| `general-purpose` | Multi-step tasks needing both exploration and modification. |
+| `Explore` | 只读代码库搜索和分析。用于模式 5（研究隔离）。 |
+| `Plan` | 计划模式期间的只读研究。 |
+| `general-purpose` | 需要探索和修改的多步骤任务。 |
 
-Don't redefine these. Layer your specialist personas (code-reviewer, security-auditor, test-engineer) on top of them.
+不要重新定义这些。在你的专家角色（code-reviewer、security-auditor、test-engineer）之上构建它们。
 
-### Frontmatter restrictions for plugin agents
+### 插件代理的 frontmatter 限制
 
-Plugin subagents do **not** support the `hooks`, `mcpServers`, or `permissionMode` frontmatter fields — these are silently ignored. If a future persona needs any of those, the user must copy the file into `.claude/agents/` or `~/.claude/agents/` instead.
+插件子代理**不支持** `hooks`、`mcpServers` 或 `permissionMode` frontmatter 字段 —— 这些会被静默忽略。如果未来的角色需要其中任何一个，用户必须将文件复制到 `.claude/agents/` 或 `~/.claude/agents/` 中。
 
-The fields that DO work in plugin agents are: `name`, `description`, `tools`, `disallowedTools`, `model`, `maxTurns`, `skills`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt`. Use `model` per-persona if you want to optimize cost (e.g. Haiku for `test-engineer` coverage scans, Sonnet for `code-reviewer`, Opus for `security-auditor`).
+在插件代理中*确实*工作的字段是：`name`、`description`、`tools`、`disallowedTools`、`model`、`maxTurns`、`skills`、`memory`、`background`、`effort`、`isolation`、`color`、`initialPrompt`。如果你想优化成本，可以按角色使用 `model`（例如 Haiku 用于 `test-engineer` 覆盖扫描，Sonnet 用于 `code-reviewer`，Opus 用于 `security-auditor`）。
 
-### Spawning multiple subagents in parallel
+### 并行生成多个子代理
 
-In Claude Code, parallel fan-out (Pattern 3) requires issuing **multiple Agent tool calls in a single assistant turn**. Sequential turns serialize execution. `/ship` calls this out explicitly. Any new orchestrator command should do the same.
+在 Claude Code 中，并行扇出（模式 3）要求**在单个助手回合中发出多个 Agent 工具调用**。顺序回合序列化执行。`/ship` 明确调出这一点。任何新的编排命令也应该这样做。
 
 ---
 
-## Worked example: Agent Teams for competing-hypothesis debugging
+## 示例：用于竞争假设调试的 Agent Teams
 
-This example shows when to reach for **Agent Teams** instead of `/ship`'s subagent fan-out. The two patterns look similar from a distance — both spawn the same three personas — but the value comes from a different place.
+此示例展示了何时使用 **Agent Teams** 而不是 `/ship` 的子代理扇出。这两种模式从远处看起来很相似 —— 都生成相同的三个角色 —— 但价值来自不同的地方。
 
-### The scenario
+### 场景
 
-> *Checkout occasionally hangs for ~30 seconds before completing. It happens roughly once every 50 sessions. No errors in logs. Started after last week's release.*
+> *结账偶尔挂起约 30 秒，然后完成。大约每 50 次会话发生一次。日志中没有错误。始于上周的发布。*
 
-Plausible root causes (mutually exclusive, all fit the symptoms):
+合理的根本原因（互斥，都符合症状）：
 
-1. A race condition in the new payment-confirmation flow
-2. An auth check that occasionally falls through to a slow synchronous network call
-3. A missing index on a query that scales with cart size
-4. A flaky third-party API where the SDK retries silently before timing out
+1. 新支付确认流程中的竞态条件
+2. 偶尔回落到慢同步网络调用的认证检查
+3. 随购物车大小缩放的查询缺少索引
+4. SDK 在超时间静默重试的不稳定第三方 API
 
-A single agent will pick the first plausible theory and stop investigating. A `/ship`-style subagent fan-out would have each persona report independently — but their reports never meet, so nothing rules out the wrong theories.
+单一代理会选择第一个合理的理论并停止调查。`/ship` 风格的子代理扇出会有每个角色独立报告 —— 但它们的报告从不相遇，所以没有什么能排除错误的理论。
 
-This is exactly the case the Agent Teams docs describe: *"With multiple independent investigators actively trying to disprove each other, the theory that survives is much more likely to be the actual root cause."*
+这恰好是 Agent Teams 文档描述的情况：*"当多个独立调查员积极试图证伪彼此的理论时，幸存的理论更有可能是真正的根本原因。"*
 
-### Why this is *not* a `/ship` job
+### 为什么这*不是* `/ship` 的工作
 
-| | `/ship` (subagents) | Agent Teams |
+| | `/ship`（子代理） | Agent Teams |
 |--|--------------------|-------------|
-| Sub-agents see | The same diff, different lenses | A shared task list, each other's messages |
-| Output | Three independent reports → one merge | Adversarial debate → consensus root cause |
-| Right when | You want a verdict on a known artifact | You want to *find* the artifact among hypotheses |
+| 子代理看到 | 相同的 diff，不同的镜头 | 共享任务列表，彼此的消息 |
+| 输出 | 三个独立报告 → 一个合并 | 对抗性辩论 → 共识根本原因 |
+| 何时正确 | 你想对已知工件做出裁决 | 你想在假设中*找到*工件 |
 
-`/ship` is a verdict; Agent Teams is an investigation.
+`/ship` 是裁决；Agent Teams 是调查。
 
-### Setup (one-time, per-environment)
+### 设置（一次性，每环境）
 
-Agent Teams is experimental. In `~/.claude/settings.json`:
+Agent Teams 是实验性的。在 `~/.claude/settings.json` 中：
 
 ```json
 {
@@ -212,159 +212,158 @@ Agent Teams is experimental. In `~/.claude/settings.json`:
 }
 ```
 
-Requires Claude Code v2.1.32 or later. The personas in this repo are picked up automatically — no team-config files to author by hand.
+需要 Claude Code v2.1.32 或更高版本。本仓库中的角色会自动拾取 —— 不需要手动编写团队配置文件。
 
-### The trigger prompt
+### 触发提示
 
-Type into the lead session, in natural language:
-
-```
-Users report checkout hangs for ~30 seconds intermittently after last
-week's release. No errors in logs.
-
-Create an agent team to debug this with competing hypotheses. Spawn
-three teammates using the existing agent types:
-
-  - code-reviewer  — investigate race conditions and blocking calls
-                     in the checkout code path
-  - security-auditor — investigate auth checks, session handling,
-                       and any synchronous network calls added recently
-  - test-engineer  — propose tests that would distinguish between the
-                     hypotheses and check coverage gaps in checkout
-
-Have them message each other directly to challenge each other's
-theories. Update findings as consensus emerges. Only converge when
-two teammates agree they can disprove the others'.
-```
-
-The lead spawns three teammates referencing the existing persona names. The persona body is **appended** to each teammate's system prompt as additional instructions (on top of the team-coordination instructions the lead installs); the trigger prompt above becomes their task.
-
-### What happens
-
-1. Each teammate runs in its own context window, exploring the codebase from its own lens.
-2. Teammates use `message` to send findings to each other directly. The lead doesn't have to relay.
-3. The shared task list shows who's investigating what — visible at any time with `Ctrl+T` (in-process mode) or in a tmux pane (split mode).
-4. When `code-reviewer` finds a `Promise.all` that should be sequential, it messages `security-auditor` to confirm the auth call isn't part of the race. `security-auditor` checks and replies — either confirming the race is the real issue or producing counter-evidence.
-5. `test-engineer` proposes a focused integration test for whichever theory is winning, which the team uses to verify before declaring consensus.
-6. The lead synthesizes the converged finding and presents it to you.
-
-You can interrupt at any teammate by cycling with `Shift+Down` and typing — useful for redirecting an investigator who's gone down a wrong path.
-
-### When to clean up
-
-When the investigation lands on a root cause, tell the lead:
+在引导会话中输入，使用自然语言：
 
 ```
-Clean up the team
+用户报告结账在上周发布后偶尔挂起约 30 秒。
+日志中没有错误。
+
+创建一个代理团队来调试这个，带竞争假设。生成
+三个队友使用现有的代理类型：
+
+  - code-reviewer  — 调查结账代码路径中的竞态条件和阻塞调用
+  - security-auditor — 调查认证检查、会话处理，
+                       和最近添加的任何同步网络调用
+  - test-engineer  — 提出能区分假设的测试，并检查
+                     结账中的覆盖率缺口
+
+让他们直接互相发消息以质疑彼此的理论。
+当共识出现时更新发现。只有当两个队友同意他们可以
+证伪其他理论时才收敛。
 ```
 
-Always cleanup through the lead, not a teammate (per the docs: teammates lack full team context for cleanup).
+引导生成三个队友引用现有的角色名称。角色正文被**追加**到每个队友的系统提示中作为额外指令（在引导安装团队协调指令之上）；上面的触发提示成为它们的任务。
 
-### Cost expectation
+### 发生了什么
 
-Three Sonnet teammates running for ~10–15 minutes of investigation costs noticeably more than the same three personas spawned as subagents by `/ship`. The justification is *quality of conclusion* — for production debugging where the wrong fix is expensive, the extra tokens are a bargain. For a routine PR review, stick with `/ship`.
+1. 每个队友在自己的上下文窗口中运行，从自己的镜头探索代码库。
+2. 队友使用 `message` 直接向彼此发送发现。引导不需要中继。
+3. 共享任务列表显示谁在调查什么 —— 随时可以用 `Ctrl+T` 查看（进程中模式）或在 tmux 面板中（分离模式）。
+4. 当 `code-reviewer` 发现应该是顺序的 `Promise.all` 时，它发消息给 `security-auditor` 确认认证调用不是竞态的一部分。`security-auditor` 检查并回复 —— 要么确认竞态是真正问题，要么产生反证。
+5. `test-engineer` 为领先的理论提出聚焦的集成测试，团队用它来在宣布共识前验证。
+6. 引导综合收敛的发现并呈现给你。
 
-### Anti-pattern in this scenario
+你可以随时通过 `Shift+Down` 循环到任何队友并输入来中断 —— 用于重定向走入错误路径的调查员。
 
-Do **not** rebuild this as a `/debug` slash command that fans out subagents. Subagents can't message each other — you'd lose the adversarial debate that makes the pattern work. If a workflow keeps coming up, document the trigger prompt above as a snippet rather than wrapping it in a slash command that misuses subagents.
+### 何时清理
 
-### When *not* to use Agent Teams
+当调查找到根本原因时，告诉引导：
 
-- Production-bound verdict on a known diff → use `/ship` (subagents).
-- One specialist perspective on one artifact → direct persona invocation.
-- Sequential lifecycle (spec → plan → build) → user-driven slash commands (Pattern 4).
-- Read-heavy research with a small digest → built-in `Explore` subagent.
+```
+清理团队
+```
 
-Reach for Agent Teams only when teammates **need** to challenge each other to produce the right answer.
+始终通过引导清理，而不是队友（按照文档：队友缺乏清理的完整团队上下文）。
+
+### 成本预期
+
+三个 Sonnet 队友运行约 10-15 分钟的调查，成本明显高于由 `/ship` 生成相同三个角色作为子代理。理由是*结论质量* —— 对于错误修复成本高昂的生产调试，额外的 token 是划算的。对于常规 PR 审查，坚持使用 `/ship`。
+
+### 此场景中的反模式
+
+**不要**将其重建为扇出子代理的 `/debug` 斜杠命令。子代理不能互相发消息 —— 你会失去使模式工作的对抗性辩论。如果工作流反复出现，将上面的触发提示记录为代码片段，而不是将其包装在误用子代理的斜杠命令中。
+
+### 何时*不要*使用 Agent Teams
+
+- 对已知 diff 的生产裁决 → 使用 `/ship`（子代理）。
+- 对一个工件的一个专家视角 → 直接角色调用。
+- 顺序生命周期（spec → plan → build） → 用户驱动的斜杠命令（模式 4）。
+- 带小摘要的重读研究 → 内建 `Explore` 子代理。
+
+仅当队友**需要**质疑彼此以产生正确答案时才使用 Agent Teams。
 
 ---
 
-## Anti-patterns
+## 反模式
 
-### A. Router persona ("meta-orchestrator")
+### A. 路由器角色（"meta-orchestrator"）
 
-A persona whose job is to decide which other persona to call.
-
-```
-/work → router-persona → "this needs a review" → code-reviewer → router (paraphrases) → user
-```
-
-**Why it fails:**
-- Pure routing layer with no domain value
-- Adds two paraphrasing hops → information loss + roughly 2× token cost
-- The user already knew they wanted a review; they could have called `/review` directly
-- Replicates the work that slash commands and intent mapping in `AGENTS.md` already do
-
-**What to do instead:** add or refine slash commands. Document intent → command mapping in `AGENTS.md`.
-
----
-
-### B. Persona that calls another persona
-
-A `code-reviewer` that internally invokes `security-auditor` when it sees auth code.
-
-**Why it fails:**
-- Personas were designed to produce a single perspective; chaining them defeats that
-- The summary the calling persona passes loses context the called persona needs
-- Failure modes multiply (which persona's output format wins? whose rules apply?)
-- Hides cost from the user
-
-**What to do instead:** have the calling persona *recommend* a follow-up audit in its report. The user or a slash command runs the second pass.
-
----
-
-### C. Sequential orchestrator that paraphrases
-
-An agent that calls `/spec`, then `/plan`, then `/build`, etc. on the user's behalf.
-
-**Why it fails:**
-- Loses the human checkpoints that catch wrong-direction work
-- Each hand-off summarizes context — accumulated drift over a long pipeline
-- Doubles token cost: orchestrator turn + sub-agent turn for every step
-- Removes user agency at exactly the points where judgment matters most
-
-**What to do instead:** keep the user as the orchestrator. Document the recommended sequence in `README.md` and let users invoke it.
-
----
-
-### D. Deep persona trees
-
-`/ship` calls a `pre-ship-coordinator` that calls a `quality-coordinator` that calls `code-reviewer`.
-
-**Why it fails:**
-- Each layer adds latency and tokens with no decision value
-- Debugging becomes a multi-level investigation
-- The leaf personas lose context to multiple summarization steps
-
-**What to do instead:** keep the orchestration depth at most 1 (slash command → personas). The merge happens in the main agent.
-
----
-
-## Decision flow
-
-When considering a new orchestrated workflow, walk this flow:
+一个角色，其职责是决定调用哪个其他角色。
 
 ```
-Is the work one perspective on one artifact?
-├── Yes → Direct invocation. Stop.
-└── No  → Will the same composition repeat?
-         ├── No  → Direct invocation, ad hoc. Stop.
-         └── Yes → Are sub-tasks independent?
-                  ├── No  → Sequential slash commands run by user (Pattern 4).
-                  └── Yes → Parallel fan-out with merge (Pattern 3).
-                           Validate against the checklist above.
-                           If any check fails → fall back to single-persona command (Pattern 2).
+/work → router-persona → "这需要审查" → code-reviewer → router（转述）→ 用户
+```
+
+**为什么失败：**
+- 纯路由层，无领域价值
+- 增加两次转述跳跃 → 信息丢失 + 约 2× token 成本
+- 用户已经知道他们想要审查；他们可以直接调用 `/review`
+- 重复了斜杠命令和 `AGENTS.md` 中意图映射已经完成的工作
+
+**替代方案：** 添加或细化斜杠命令。在 `AGENTS.md` 中记录意图 → 命令映射。
+
+---
+
+### B. 调用另一个角色的角色
+
+一个看到认证代码时内部调用 `security-auditor` 的 `code-reviewer`。
+
+**为什么失败：**
+- 角色被设计为产生单一视角；链接它们破坏了这一点
+- 调用角色传递的摘要丢失了被调用角色需要的上下文
+- 失败模式倍增（哪个角色的输出格式胜出？谁的规则适用？）
+- 对用户隐藏成本
+
+**替代方案：** 让调用角色在报告中*推荐*后续审计。用户或斜杠命令运行第二次检查。
+
+---
+
+### C. 转述的顺序编排者
+
+一个代表用户调用 `/spec`，然后 `/plan`，然后 `/build` 等的代理。
+
+**为什么失败：**
+- 丢失捕获错误方向工作的人类检查点
+- 每次移交总结上下文 —— 长管道上的累积漂移
+- token 成本翻倍：编排者回合 + 每步的子代理回合
+- 在判断最重要的点上移除了用户代理权
+
+**替代方案：** 保持用户作为编排者。在 `README.md` 中记录推荐的顺序，让用户调用它。
+
+---
+
+### D. 深层角色树
+
+`/ship` 调用 `pre-ship-coordinator`，调用 `quality-coordinator`，调用 `code-reviewer`。
+
+**为什么失败：**
+- 每层增加延迟和 token，无决策价值
+- 调试变成多层调查
+- 叶角色在多次总结步骤中丢失上下文
+
+**替代方案：** 保持编排深度最多为 1（斜杠命令 → 角色）。合并发生在主代理中。
+
+---
+
+## 决策流
+
+在考虑新的编排工作流时，走这个流程：
+
+```
+工作是对一个工件的一个视角吗？
+├── 是 → 直接调用。停止。
+└── 否  → 相同的组合会重复吗？
+         ├── 否  → 直接调用，临时的。停止。
+         └── 是 → 子任务独立吗？
+                  ├── 否  → 用户运行的顺序斜杠命令（模式 4）。
+                  └── 是 → 并行扇出加合并（模式 3）。
+                           根据上面的检查清单验证。
+                           如果任何检查失败 → 回退到单一角色命令（模式 2）。
 ```
 
 ---
 
-## When to add a new pattern to this catalog
+## 何时向此目录添加新模式
 
-Add a new entry only after:
+仅在之后添加新条目：
 
-1. You've used the pattern at least twice in real work
-2. You can name a concrete artifact in this repo that demonstrates it
-3. You can explain why an existing pattern wouldn't have worked
-4. You can describe its anti-pattern shadow (what people will mistakenly build instead)
+1. 你在实际工作中使用过该模式至少两次
+2. 你能命名本仓库中演示它的具体工件
+3. 你能解释为什么现有模式不起作用
+4. 你能描述它的反模式阴影（人们会错误构建什么）
 
-Premature catalog entries become aspirational documentation that no one follows.
+过早的目录条目变成没人遵循的期望文档。

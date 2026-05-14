@@ -1,278 +1,237 @@
 ---
 name: documentation-and-adrs
-description: Records decisions and documentation. Use when making architectural decisions, changing public APIs, shipping features, or when you need to record context that future engineers and agents will need to understand the codebase.
+description: 创建维护良好的文档和架构决策记录。当做出架构决策、更改 API 或发布功能时使用。当用户要求"记录这个决策"、"为什么我们选择了 X"或"更新文档"时使用。
 ---
 
-# Documentation and ADRs
+# 文档与 ADRs
 
-## Overview
+## 概览
 
-Document decisions, not just code. The most valuable documentation captures the *why* — the context, constraints, and trade-offs that led to a decision. Code shows *what* was built; documentation explains *why it was built this way* and *what alternatives were considered*. This context is essential for future humans and agents working in the codebase.
+记录架构决策的 *为什么*，而不仅仅是 *是什么*。代码告诉你系统做什么——文档告诉你为什么以那种方式构建。没有文档，未来的维护者会重新发明你已经做出的决策。
 
-## When to Use
+## 何时使用
 
-- Making a significant architectural decision
-- Choosing between competing approaches
-- Adding or changing a public API
-- Shipping a feature that changes user-facing behavior
-- Onboarding new team members (or agents) to the project
-- When you find yourself explaining the same thing repeatedly
+- 做出架构决策
+- 更改 API 或数据库模式
+- 引入新的依赖或模式
+- 发布新功能
+- 用户要求"记录这个决策"
+- 你注意到自己在解释相同的决策多次
 
-**When NOT to use:** Don't document obvious code. Don't add comments that restate what the code already says. Don't write docs for throwaway prototypes.
+## 架构决策记录（ADRs）
 
-## Architecture Decision Records (ADRs)
-
-ADRs capture the reasoning behind significant technical decisions. They're the highest-value documentation you can write.
-
-### When to Write an ADR
-
-- Choosing a framework, library, or major dependency
-- Designing a data model or database schema
-- Selecting an authentication strategy
-- Deciding on an API architecture (REST vs. GraphQL vs. tRPC)
-- Choosing between build tools, hosting platforms, or infrastructure
-- Any decision that would be expensive to reverse
-
-### ADR Template
-
-Store ADRs in `docs/decisions/` with sequential numbering:
+每个重要的架构决策都应该有一个 ADR：
 
 ```markdown
-# ADR-001: Use PostgreSQL for primary database
+# [决策编号]：[决策标题]
 
-## Status
-Accepted | Superseded by ADR-XXX | Deprecated
+**日期：** [决定日期]
+**状态：** 已接受 | 弃用 | 超期
+**上下文：** [我们面临什么问题？]
+**决策：** [我们决定什么？]
+**后果：** [这个决策意味着什么？]
 
-## Date
-2025-01-15
+## 背景
 
-## Context
-We need a primary database for the task management application. Key requirements:
-- Relational data model (users, tasks, teams with relationships)
-- ACID transactions for task state changes
-- Support for full-text search on task content
-- Managed hosting available (for small team, limited ops capacity)
+[问题的详细描述。为什么这个决策是必要的？]
 
-## Decision
-Use PostgreSQL with Prisma ORM.
+## 选项
 
-## Alternatives Considered
+### 选项 1：[名称]
+**优点：**
+- [优点 1]
+- [优点 2]
 
-### MongoDB
-- Pros: Flexible schema, easy to start with
-- Cons: Our data is inherently relational; would need to manage relationships manually
-- Rejected: Relational data in a document store leads to complex joins or data duplication
+**缺点：**
+- [缺点 1]
+- [缺点 2]
 
-### SQLite
-- Pros: Zero configuration, embedded, fast for reads
-- Cons: Limited concurrent write support, no managed hosting for production
-- Rejected: Not suitable for multi-user web application in production
+### 选项 2：[名称]
+**优点：**
+- [优点 1]
+- [优点 2]
 
-### MySQL
-- Pros: Mature, widely supported
-- Cons: PostgreSQL has better JSON support, full-text search, and ecosystem tooling
-- Rejected: PostgreSQL is the better fit for our feature requirements
+**缺点：**
+- [缺点 1]
+- [缺点 2]
 
-## Consequences
-- Prisma provides type-safe database access and migration management
-- We can use PostgreSQL's full-text search instead of adding Elasticsearch
-- Team needs PostgreSQL knowledge (standard skill, low risk)
-- Hosting on managed service (Supabase, Neon, or RDS)
+## 决策
+
+选择 [选项 X]，因为 [理由]。
+
+## 后果
+
+- [积极后果 1]
+- [积极后果 2]
+- [需要管理的消极后果]
+
+## 相关决策
+
+- [ADR-001：相关决策 1](../001-related-decision.md)
+- [ADR-002：相关决策 2](../002-related-decision.md)
 ```
 
-### ADR Lifecycle
+## ADR 编号和位置
 
 ```
-PROPOSED → ACCEPTED → (SUPERSEDED or DEPRECATED)
+docs/
+  adr/
+    001-use-typescript.md
+    002-use-react-query.md
+    003-use-postgresql.md
+    ...
 ```
 
-- **Don't delete old ADRs.** They capture historical context.
-- When a decision changes, write a new ADR that references and supersedes the old one.
+**编号规则：**
+- 从 001 开始，每个新决策递增
+- 即使 ADR 被删除，也不要重用编号
+- 文件名应描述决策，而不只是编号
 
-## Inline Documentation
+## 文档层次结构
 
-### When to Comment
+```
+README.md              # 项目概述、快速开始
+docs/
+  architecture.md      # 高层架构概述
+  adr/                 # 架构决策记录
+  api.md              # API 文档
+  deployment.md       # 部署指南
+  contributing.md     # 贡献指南
+```
 
-Comment the *why*, not the *what*:
+## API 文档
 
-```typescript
-// BAD: Restates the code
-// Increment counter by 1
-counter += 1;
+每个公共 API 都应该有文档：
 
-// GOOD: Explains non-obvious intent
-// Rate limit uses a sliding window — reset counter at window boundary,
-// not on a fixed schedule, to prevent burst attacks at window edges
-if (now - windowStart > WINDOW_SIZE_MS) {
-  counter = 0;
-  windowStart = now;
+```markdown
+# 任务 API
+
+## 端点
+
+### 创建任务
+
+**POST** `/api/v2/tasks`
+
+**请求体：**
+```json
+{
+  "title": "string (required)",
+  "description": "string (optional)",
+  "priority": "enum: low | medium | high (optional, default: medium)"
 }
 ```
 
-### When NOT to Comment
-
-```typescript
-// Don't comment self-explanatory code
-function calculateTotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+**响应：**
+```json
+{
+  "id": "string",
+  "title": "string",
+  "description": "string | null",
+  "priority": "string",
+  "status": "string",
+  "created_at": "ISO 8601 datetime",
+  "updated_at": "ISO 8601 datetime"
 }
-
-// Don't leave TODO comments for things you should just do now
-// TODO: add error handling  ← Just add it
-
-// Don't leave commented-out code
-// const oldImplementation = () => { ... }  ← Delete it, git has history
 ```
 
-### Document Known Gotchas
+**错误：**
+- `422` - 验证失败（title 为空或超过 200 字符）
+- `401` - 未认证
+- `500` - 服务器错误
+
+**示例：**
+```bash
+curl -X POST https://api.example.com/api/v2/tasks \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "完成任务"}'
+```
+```
+
+## 内联文档标准
 
 ```typescript
 /**
- * IMPORTANT: This function must be called before the first render.
- * If called after hydration, it causes a flash of unstyled content
- * because the theme context isn't available during SSR.
+ * 创建新任务并返回带有服务器生成字段的已创建任务。
  *
- * See ADR-003 for the full design rationale.
- */
-export function initializeTheme(theme: Theme): void {
-  // ...
-}
-```
-
-## API Documentation
-
-For public APIs (REST, GraphQL, library interfaces):
-
-### Inline with Types (Preferred for TypeScript)
-
-```typescript
-/**
- * Creates a new task.
- *
- * @param input - Task creation data (title required, description optional)
- * @returns The created task with server-generated ID and timestamps
- * @throws {ValidationError} If title is empty or exceeds 200 characters
- * @throws {AuthenticationError} If the user is not authenticated
+ * @param input - 任务创建数据
+ * @param input.title - 任务标题（必填，最多 200 字符）
+ * @param input.description - 任务描述（可选）
+ * @param input.priority - 任务优先级（可选，默认为 'medium'）
+ * @returns 带有服务器生成 ID 和日期的已创建任务
+ * @throws ValidationError 如果 title 为空或超过 200 字符
+ * @throws DatabaseError 如果数据库插入失败
  *
  * @example
- * const task = await createTask({ title: 'Buy groceries' });
- * console.log(task.id); // "task_abc123"
+ * ```typescript
+ * const task = await createTask({
+ *   title: '完成任务',
+ *   description: '完成项目文档',
+ *   priority: 'high',
+ * });
+ * console.log(task.id); // 'task_abc123'
+ * ```
  */
 export async function createTask(input: CreateTaskInput): Promise<Task> {
-  // ...
+  // 实现
 }
 ```
 
-### OpenAPI / Swagger for REST APIs
+**规则：**
+- 每个公共函数都有 JSDoc/TSDoc 注释
+- 描述 *为什么* 和 *什么*，不描述 *如何*（代码已经展示了 *如何*）
+- 包括示例对于复杂或容易出错的 API
+- 记录抛出的异常和错误条件
+
+## 文档维护
+
+文档会过时。防止这个：
 
 ```yaml
-paths:
-  /api/tasks:
-    post:
-      summary: Create a task
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateTaskInput'
-      responses:
-        '201':
-          description: Task created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Task'
-        '422':
-          description: Validation error
+# CI 中的文档检查
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 检查文档链接
+        run: npx markdown-link-check docs/**/*.md
+      - name: 检查代码示例
+        run: npm run test:examples
 ```
 
-## README Structure
+**规则：**
+- 每次 PR 中，如果代码变更影响文档，更新文档
+- 在 CI 中检查文档链接
+- 测试代码示例确保它们仍然有效
+- 在代码变更时审查相关 ADRs
 
-Every project should have a README that covers:
+## 常见合理化
 
-```markdown
-# Project Name
-
-One-paragraph description of what this project does.
-
-## Quick Start
-1. Clone the repo
-2. Install dependencies: `npm install`
-3. Set up environment: `cp .env.example .env`
-4. Run the dev server: `npm run dev`
-
-## Commands
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm test` | Run tests |
-| `npm run build` | Production build |
-| `npm run lint` | Run linter |
-
-## Architecture
-Brief overview of the project structure and key design decisions.
-Link to ADRs for details.
-
-## Contributing
-How to contribute, coding standards, PR process.
-```
-
-## Changelog Maintenance
-
-For shipped features:
-
-```markdown
-# Changelog
-
-## [1.2.0] - 2025-01-20
-### Added
-- Task sharing: users can share tasks with team members (#123)
-- Email notifications for task assignments (#124)
-
-### Fixed
-- Duplicate tasks appearing when rapidly clicking create button (#125)
-
-### Changed
-- Task list now loads 50 items per page (was 20) for better UX (#126)
-```
-
-## Documentation for Agents
-
-Special consideration for AI agent context:
-
-- **CLAUDE.md / rules files** — Document project conventions so agents follow them
-- **Spec files** — Keep specs updated so agents build the right thing
-- **ADRs** — Help agents understand why past decisions were made (prevents re-deciding)
-- **Inline gotchas** — Prevent agents from falling into known traps
-
-## Common Rationalizations
-
-| Rationalization | Reality |
+| 合理化 | 现实 |
 |---|---|
-| "The code is self-documenting" | Code shows what. It doesn't show why, what alternatives were rejected, or what constraints apply. |
-| "We'll write docs when the API stabilizes" | APIs stabilize faster when you document them. The doc is the first test of the design. |
-| "Nobody reads docs" | Agents do. Future engineers do. Your 3-months-later self does. |
-| "ADRs are overhead" | A 10-minute ADR prevents a 2-hour debate about the same decision six months later. |
-| "Comments get outdated" | Comments on *why* are stable. Comments on *what* get outdated — that's why you only write the former. |
+| "代码是自文档的" | 代码告诉你 *什么*，不告诉你 *为什么*。文档记录推理。 |
+| "我们可以稍后写文档" | 稍后意味着从未。在决策时写文档——推理还新鲜。 |
+| "文档太繁琐" | 简短的 ADR（5 分钟）节省未来的维护者数小时的困惑。 |
+| "这个决策很明显" | 对你来说很明显，对三个月后的你或新团队成员来说可能不是。 |
 
-## Red Flags
+## 危险信号
 
-- Architectural decisions with no written rationale
-- Public APIs with no documentation or types
-- README that doesn't explain how to run the project
-- Commented-out code instead of deletion
-- TODO comments that have been there for weeks
-- No ADRs in a project with significant architectural choices
-- Documentation that restates the code instead of explaining intent
+- 没有记录的架构决策
+- 过时的文档（不匹配代码）
+- 断开的文档链接
+- 不工作的代码示例
+- 没有 ADR 的重大变更
+- 只记录 *什么*，不记录 *为什么*
 
-## Verification
+## 验证
 
-After documenting:
+文档后：
 
-- [ ] ADRs exist for all significant architectural decisions
-- [ ] README covers quick start, commands, and architecture overview
-- [ ] API functions have parameter and return type documentation
-- [ ] Known gotchas are documented inline where they matter
-- [ ] No commented-out code remains
-- [ ] Rules files (CLAUDE.md etc.) are current and accurate
+- [ ] ADR 记录了决策的上下文、选项和后果
+- [ ] API 端点有请求/响应示例
+- [ ] 公共函数有 JSDoc/TSDoc 注释
+- [ ] 文档链接有效
+- [ ] 代码示例经过测试
+- [ ] 相关 ADRs 被交叉引用
+- [ ] 文档与代码变更一起提交
